@@ -1,0 +1,23 @@
+# --- Node / Vite / Svelte ---
+node_modules/
+dist/
+.svelte-kit/
+*.log
+npm-debug.log*
+.DS_Store
+
+# Vite
+.vite/
+
+# --- Rust / Tauri ---
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock
+
+# Rust
+**/*.rs.bk
+
+# --- Editor ---
+.vscode/
+.idea/
+*.swp

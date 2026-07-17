@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Quake Companion global styles — tuned for the 1920x480 ultra-wide IPS panel.
+   Dark theme, high contrast, large type readable at ~60cm desk distance. */
+
+:root {
+  --quake: #00d9ff;
+  --quake-glow: #5eecff;
+  --ink-950: #05070a;
+  --ink-900: #0a0e14;
+  --ink-800: #11161f;
+  --ink-700: #1a2230;
+  color-scheme: dark;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--ink-950);
+  color: #e6f6fb;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Prevent text selection while tapping the panel. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  /* The panel renders black extremely well — full-bleed, no chrome. */
+  background:
+    radial-gradient(120% 120% at 50% -20%, #0d1722 0%, var(--ink-950) 60%);
+}
+
+/* Scrollbars: thin and cyan-accented so they read on the dark background. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 217, 255, 0.35);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Utility: a faint cyan glow used by active elements. */
+.quake-glow {
+  box-shadow:
+    0 0 0 1px rgba(0, 217, 255, 0.25),
+    0 0 16px rgba(0, 217, 255, 0.18);
+}
+
+/* Panels slide left/right; quick (150-200ms) easing. */
+.panel-enter {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease-out;
+}
+
+/* Minimum touch target. */
+.touch-target {
+  min-width: 48px;
+  min-height: 48px;
+}
+
+/* Reduced motion: respect it but the panel still needs feedback. */
+@media (prefers-reduced-motion: reduce) {
+  .panel-enter {
+    transition-duration: 80ms;
+  }
+}
