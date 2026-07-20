@@ -25,12 +25,9 @@
   let statsTimer: ReturnType<typeof setInterval> | undefined;
 
   // --- Touch swipe navigation -----------------------------------------------
-  // The panel sends multi-touch points in native pixels (1920x480). We track
-  // the first contact X and, when all fingers lift (empty report), navigate by
-  // the horizontal delta if it exceeds the threshold.
   let swipeStartX: number | null = null;
   let swipeLastX = 0;
-  const SWIPE_THRESHOLD = 220; // px in panel-native space
+  const SWIPE_THRESHOLD = 220;
 
   $effect(() => {
     const pts = $touchPoints;
@@ -41,7 +38,7 @@
     } else if (swipeStartX !== null) {
       const dx = swipeLastX - swipeStartX;
       if (Math.abs(dx) > SWIPE_THRESHOLD) {
-        movePanel(dx > 0 ? -1 : 1); // swipe right -> previous
+        movePanel(dx > 0 ? -1 : 1);
       }
       swipeStartX = null;
     }
@@ -50,14 +47,11 @@
   // --- Lifecycle ------------------------------------------------------------
   onMount(async () => {
     await startDeviceEvents();
-    // Try to wake immediately if a device is present; failures are expected in
-    // the no-device dev state and just leave the "waiting" overlay up.
     try {
       await api.wake();
     } catch {
       /* no device — handled by overlay */
     }
-    // Refresh system stats every 3s for the Stats panel.
     await refreshStats();
     statsTimer = setInterval(refreshStats, 3000);
   });
@@ -80,8 +74,6 @@
 <div id="app-root" class="relative h-screen w-screen overflow-hidden">
   <StatusBar />
 
-  <!-- Panel strip: each panel is 100vw wide; translate the strip to reveal the
-       active one. Slides horizontally with a 180ms ease. -->
   <div
     class="panels-viewport absolute left-0 right-0 top-11 bottom-8 overflow-hidden"
   >
@@ -114,14 +106,22 @@
 
   {#if !$deviceState.connected}
     <div
-      class="waiting-overlay absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      class="waiting-overlay absolute inset-0 z-50 flex items-center justify-center bg-[#0a0b0e]/85 backdrop-blur-sm"
     >
-      <div class="flex flex-col items-center gap-3 text-center">
-        <div class="h-10 w-10 animate-pulse rounded-full border-2 border-quake/60"></div>
-        <p class="text-lg font-medium text-quake-glow">Waiting for QUAKE device…</p>
-        <p class="text-sm text-white/50">
-          Connect the DK-QUAKE panel (control HID usage 0x61/0xFF60).
-        </p>
+      <div class="flex flex-col items-center gap-6 text-center">
+        <!-- Scanning line animation -->
+        <div class="scan-frame relative h-16 w-48 overflow-hidden">
+          <div class="scan-line absolute left-0 top-0 h-full w-px bg-[#00d9ff]"></div>
+          <div class="absolute inset-0 border border-[rgba(0,217,255,0.08)]"></div>
+        </div>
+        <div class="flex flex-col items-center gap-1.5">
+          <p class="font-display text-sm font-medium tracking-[0.3em] uppercase text-[#e8eef2]/80">
+            Waiting for device
+          </p>
+          <p class="font-data text-xs text-[#6b7785]">
+            Connect the DK-QUAKE panel · HID 0x61 / 0xFF60
+          </p>
+        </div>
       </div>
     </div>
   {/if}
@@ -130,5 +130,34 @@
 <style>
   .panels-viewport {
     /* leaves room for StatusBar (top) + PanelIndicator (bottom) */
+  }
+
+  .scan-line {
+    animation: scan-sweep 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes scan-sweep {
+    0% {
+      left: 0%;
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%;
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scan-line {
+      animation: none;
+      left: 50%;
+      opacity: 0.5;
+    }
   }
 </style>

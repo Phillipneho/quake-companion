@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { Send, Bot, User, Settings2 } from "lucide-svelte";
+  import { Send, Bot, User, Settings2, ChevronRight } from "lucide-svelte";
 
   interface ChatMsg {
     role: "user" | "assistant" | "system";
     content: string;
   }
 
-  // Configurable OpenAI-compatible endpoint. Defaults to a local Ollama
-  // (OpenClaw exposes the same /v1/chat/completions shape). Editable in-panel.
   const DEFAULT_ENDPOINT = "http://localhost:11434/v1/chat/completions";
   const DEFAULT_MODEL = "glm-4.6";
 
@@ -30,7 +28,6 @@
     localStorage.setItem("quake.ai.model", model);
   });
 
-  // Auto-scroll to newest message.
   $effect(() => {
     messages;
     if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight;
@@ -64,7 +61,7 @@
         ...messages,
         {
           role: "assistant",
-          content: `⚠️ Could not reach ${endpoint} — ${e instanceof Error ? e.message : "error"}. Tap ⚙ to set your endpoint.`,
+          content: `⚠️ Could not reach ${endpoint} — ${e instanceof Error ? e.message : "error"}. Tap the gear icon to configure.`,
         },
       ];
     } finally {
@@ -82,65 +79,76 @@
 
 <section class="panel flex h-full w-full items-stretch px-16 py-3">
   <div class="flex h-full w-full flex-col">
+    <!-- Header -->
     <div class="flex items-center justify-between pb-2">
-      <div class="flex items-center gap-2 text-quake">
-        <Bot size={22} />
-        <span class="text-lg font-medium text-white">Quick chat</span>
-        <span class="text-xs text-white/40">· {model}</span>
+      <div class="flex items-center gap-2.5">
+        <Bot size={20} class="text-[#3a8b9e]" />
+        <span class="font-display text-base font-500 text-[#e8eef2]">Quick chat</span>
+        <span class="font-data text-xs text-[#6b7785]">· {model}</span>
       </div>
       <button
-        class="touch-target flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white/60 hover:text-quake"
+        class="touch-target flex items-center gap-1.5 rounded px-2 py-1 transition-colors hover:text-[#00d9ff]"
+        class:text-qua-since={!showSettings}
         onclick={() => (showSettings = !showSettings)}
       >
-        <Settings2 size={16} /> Settings
+        <Settings2 size={16} class="text-[#6b7785] transition-colors" />
+        <span class="font-display text-xs text-[#6b7785]">Settings</span>
       </button>
     </div>
 
+    <!-- Settings drawer -->
     {#if showSettings}
-      <div class="mb-2 flex flex-col gap-1 rounded-md bg-ink-800/60 p-2 text-xs">
-        <label class="flex items-center gap-2">
-          <span class="w-20 text-white/50">Endpoint</span>
+      <div class="settings-drawer mb-2 flex flex-col gap-2 px-4 py-3">
+        <label class="flex items-center gap-3">
+          <span class="label-track w-20 text-[#6b7785]">Endpoint</span>
           <input
-            class="flex-1 rounded bg-ink-900 px-2 py-1 text-white outline-none ring-1 ring-quake/20 focus:ring-quake/60"
+            class="flex-1 rounded bg-[#0a0b0e] px-3 py-1.5 font-data text-xs text-[#e8eef2] outline-none ring-1 ring-[rgba(0,217,255,0.08)] focus:ring-[rgba(0,217,255,0.3)]"
             bind:value={endpoint}
           />
         </label>
-        <label class="flex items-center gap-2">
-          <span class="w-20 text-white/50">Model</span>
+        <label class="flex items-center gap-3">
+          <span class="label-track w-20 text-[#6b7785]">Model</span>
           <input
-            class="flex-1 rounded bg-ink-900 px-2 py-1 text-white outline-none ring-1 ring-quake/20 focus:ring-quake/60"
+            class="flex-1 rounded bg-[#0a0b0e] px-3 py-1.5 font-data text-xs text-[#e8eef2] outline-none ring-1 ring-[rgba(0,217,255,0.08)] focus:ring-[rgba(0,217,255,0.3)]"
             bind:value={model}
           />
         </label>
       </div>
     {/if}
 
+    <!-- Messages -->
     <div bind:this={scrollEl} class="msg-scroll flex-1 overflow-y-auto pr-2">
       {#each messages as m, i (i)}
         <div class="msg flex gap-3 py-1.5" class:user={m.role === "user"}>
           {#if m.role === "user"}
-            <User size={18} class="mt-1 shrink-0 text-quake" />
+            <div class="msg-avatar user-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded">
+              <User size={14} class="text-[#00d9ff]" />
+            </div>
           {:else}
-            <Bot size={18} class="mt-1 shrink-0 text-white/40" />
+            <div class="msg-avatar assistant-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded">
+              <Bot size={14} class="text-[#6b7785]" />
+            </div>
           {/if}
-          <p class="text-base leading-snug text-white/90">{m.content}</p>
+          <p class="text-sm leading-relaxed text-[#e8eef2]/90 pt-0.5">{m.content}</p>
         </div>
       {/each}
     </div>
 
-    <div class="mt-2 flex items-center gap-2 border-t border-quake/15 pt-2">
+    <!-- Input -->
+    <div class="mt-2 flex items-center gap-3 pt-2.5" style="border-top: 1px solid rgba(255,255,255,0.04);">
       <input
-        class="flex-1 rounded-lg bg-ink-800 px-4 py-2.5 text-base text-white outline-none ring-1 ring-quake/20 focus:ring-quake/60"
+        class="flex-1 rounded-lg bg-[#12141a] px-4 py-2.5 font-display text-sm text-[#e8eef2] outline-none ring-1 ring-[rgba(255,255,255,0.04)] focus:ring-[rgba(0,217,255,0.2)]"
         placeholder="Ask the panel…"
         bind:value={input}
         onkeydown={onKey}
       />
       <button
-        class="touch-target flex items-center gap-2 rounded-lg bg-quake px-5 py-2.5 font-medium text-ink-950 disabled:opacity-40"
+        class="touch-target flex items-center gap-2 rounded-lg px-5 py-2.5 font-display text-sm font-500 transition-opacity disabled:opacity-30"
+        style="background: #00d9ff; color: #0a0b0e;"
         disabled={busy || !input.trim()}
         onclick={() => void send()}
       >
-        <Send size={18} />
+        <Send size={16} />
         Send
       </button>
     </div>
@@ -148,10 +156,21 @@
 </section>
 
 <style>
+  .user-avatar {
+    background: rgba(0, 217, 255, 0.06);
+  }
+  .assistant-avatar {
+    background: rgba(255, 255, 255, 0.03);
+  }
   .msg.user p {
-    color: #d9f6ff;
+    color: #e8eef2;
   }
   .msg-scroll {
-    mask-image: linear-gradient(to bottom, transparent 0, #000 8px, #000 calc(100% - 8px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 6px, #000 calc(100% - 6px), transparent 100%);
+  }
+  .settings-drawer {
+    background: #12141a;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
   }
 </style>

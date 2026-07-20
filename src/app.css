@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
-/* Quake Companion global styles — tuned for the 1920x480 ultra-wide IPS panel.
-   Dark theme, high contrast, large type readable at ~60cm desk distance. */
+/* QUAKE Companion — B&O meets Cyberpunk
+   Global styles for the 1920x480 ultra-wide IPS panel.
+   Refined palette, purposeful restraint with accent glow. */
 
 :root {
+  /* Core palette */
+  --charcoal: #0a0b0e;
+  --surface: #12141a;
+  --elevated: #1a1d26;
+  --cyan: #00d9ff;
+  --teal: #3a8b9e;
+  --text: #e8eef2;
+  --text-bright: #ffffff;
+  --text-muted: #6b7785;
+  --hairline: rgba(255, 255, 255, 0.06);
+  --hairline-accent: rgba(0, 217, 255, 0.15);
+
+  /* Legacy compat — panels may still reference these */
   --quake: #00d9ff;
   --quake-glow: #5eecff;
-  --ink-950: #05070a;
-  --ink-900: #0a0e14;
-  --ink-800: #11161f;
-  --ink-700: #1a2230;
+  --ink-950: #0a0b0e;
+  --ink-900: #12141a;
+  --ink-800: #1a1d26;
+  --ink-700: #232733;
+
   color-scheme: dark;
 }
 
@@ -24,10 +39,9 @@ body {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: var(--ink-950);
-  color: #e6f6fb;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* Prevent text selection while tapping the panel. */
+  background: var(--charcoal);
+  color: var(--text);
+  font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -35,45 +49,58 @@ body {
 #app {
   width: 100vw;
   height: 100vh;
-  /* The panel renders black extremely well — full-bleed, no chrome. */
+  /* Subtle radial gradient — slightly lighter at top center, settling into deep charcoal */
   background:
-    radial-gradient(120% 120% at 50% -20%, #0d1722 0%, var(--ink-950) 60%);
+    radial-gradient(80% 100% at 50% 0%, #11131a 0%, var(--charcoal) 55%);
 }
 
-/* Scrollbars: thin and cyan-accented so they read on the dark background. */
+/* Scrollbars: thin, barely visible */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 217, 255, 0.35);
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Utility: a faint cyan glow used by active elements. */
+/* Active glow — used sparingly on important elements only */
 .quake-glow {
-  box-shadow:
-    0 0 0 1px rgba(0, 217, 255, 0.25),
-    0 0 16px rgba(0, 217, 255, 0.18);
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.25);
 }
 
-/* Panels slide left/right; quick (150-200ms) easing. */
+/* Panel transitions */
 .panel-enter {
   transition:
     transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 180ms ease-out;
 }
 
-/* Minimum touch target. */
+/* Minimum touch target */
 .touch-target {
   min-width: 48px;
   min-height: 48px;
 }
 
-/* Reduced motion: respect it but the panel still needs feedback. */
+/* Utility: uppercase label tracking */
+.label-track {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+/* Font helpers */
+.font-display {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+.font-data {
+  font-family: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel-enter {
     transition-duration: 80ms;

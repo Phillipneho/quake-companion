@@ -4,31 +4,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Electric cyan — matches the QUAKE's RGB ring aesthetic.
+        // B&O meets Cyberpunk palette
         quake: {
           DEFAULT: "#00D9FF",
           dim: "#0A6E84",
           glow: "#5EECFF",
         },
+        teal: {
+          DEFAULT: "#3A8B9E",
+        },
+        charcoal: "#0A0B0E",
+        surface: "#12141A",
+        elevated: "#1A1D26",
         ink: {
-          950: "#05070A",
-          900: "#0A0E14",
-          800: "#11161F",
-          700: "#1A2230",
-          600: "#27313F",
+          950: "#0A0B0E",
+          900: "#12141A",
+          800: "#1A1D26",
+          700: "#232733",
+          600: "#2D3240",
         },
       },
       fontFamily: {
-        mono: ["'JetBrains Mono'", "'SF Mono'", "Menlo", "monospace"],
-        sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["'Space Grotesk'", "system-ui", "sans-serif"],
+        mono: ["'IBM Plex Mono'", "'SF Mono'", "Menlo", "monospace"],
+        sans: ["'Space Grotesk'", "system-ui", "sans-serif"],
       },
       transitionDuration: {
-        // 150–200ms panel transitions.
         panel: "180ms",
       },
       screens: {
-        // The panel is 1920x480 — extremely wide. Use min-width breakpoints so
-        // the strip layout is the default.
         strip: "1900px",
       },
     },

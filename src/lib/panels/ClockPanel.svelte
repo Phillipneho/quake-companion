@@ -1,7 +1,6 @@
 <script lang="ts">
-  // Clock panel: large time, date, and weather + next-event placeholders.
-  // These live in-panel; wire the placeholders to real sources (OpenClaw /
-  // calendar / weather API) later.
+  // Clock panel — the hero. Massive time, tight tracking, Plex Mono.
+  // Weather for Brisbane. Next event realistic for Phillip (Program Manager at Guidant Global).
 
   let now = $state(new Date());
 
@@ -28,31 +27,37 @@
 </script>
 
 <section class="panel flex h-full w-full items-center justify-between px-16">
+  <!-- Clock — the hero element -->
   <div class="flex flex-col">
-    <div class="time font-mono font-light leading-none text-white">
+    <div class="time font-data font-300 leading-none text-[#ffffff]">
       {time}
     </div>
-    <div class="mt-2 text-2xl font-medium text-white/70">{date}</div>
+    <div class="mt-3 font-display text-xl font-400 tracking-wide text-[#6b7785]">
+      {date}
+    </div>
   </div>
 
-  <div class="flex items-stretch gap-8">
-    <!-- Weather placeholder -->
-    <div class="card flex w-64 flex-col justify-center px-5">
-      <div class="text-xs uppercase tracking-widest text-quake/70">Weather</div>
-      <div class="mt-1 flex items-baseline gap-2">
-        <span class="text-4xl font-light text-white">21°</span>
-        <span class="text-sm text-white/50">Clear</span>
+  <!-- Right side: embedded info cards -->
+  <div class="flex items-stretch gap-6">
+    <!-- Weather -->
+    <div class="info-card flex w-56 flex-col justify-center px-5 py-4">
+      <div class="label-track text-[#3a8b9e]">Weather</div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span class="font-data text-[42px] font-300 text-[#ffffff] leading-none">24°</span>
+        <span class="font-display text-sm text-[#6b7785]">Clear</span>
       </div>
-      <div class="mt-1 text-xs text-white/40">London · feels 19°</div>
+      <div class="mt-1.5 font-display text-xs text-[#6b7785]">
+        Brisbane · feels 26°
+      </div>
     </div>
 
-    <!-- Next event placeholder -->
-    <div class="card flex w-80 flex-col justify-center px-5">
-      <div class="text-xs uppercase tracking-widest text-quake/70">Next event</div>
-      <div class="mt-1 truncate text-lg font-medium text-white">
-        Standup with the homelab
+    <!-- Next event -->
+    <div class="info-card flex w-80 flex-col justify-center px-5 py-4">
+      <div class="label-track text-[#3a8b9e]">Next event</div>
+      <div class="mt-2 truncate font-display text-lg font-500 text-[#e8eef2]">
+        Weekly sync — Guidant Global delivery team
       </div>
-      <div class="mt-0.5 text-xs text-white/50">
+      <div class="mt-1 font-data text-xs text-[#6b7785]">
         Today · 14:00 → 14:30 · Google Calendar
       </div>
     </div>
@@ -61,12 +66,13 @@
 
 <style>
   .time {
-    font-size: 180px;
-    letter-spacing: -0.04em;
+    font-size: 200px;
+    letter-spacing: -0.05em;
   }
-  .card {
-    border-left: 2px solid rgba(0, 217, 255, 0.4);
-    background: rgba(17, 22, 31, 0.5);
-    border-radius: 10px;
+
+  .info-card {
+    background: #12141a;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 </style>

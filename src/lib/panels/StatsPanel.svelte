@@ -1,14 +1,19 @@
 <script lang="ts">
   import { systemStats } from "../stores/device";
+  import { untrack } from "svelte";
   import { Cpu, MemoryStick, HardDrive, Activity } from "lucide-svelte";
 
-  // Rolling CPU history for a mini sparkline.
+  // Rolling CPU history for sparkline.
   const HISTORY = 60;
   let cpuHistory = $state<number[]>(Array(HISTORY).fill(0));
 
+  // Use untrack to prevent the $effect from re-triggering when cpuHistory
+  // (which we write to) is read elsewhere — avoids infinite loops.
   $effect(() => {
     const v = $systemStats.cpu_usage;
-    cpuHistory = [...cpuHistory.slice(1), v];
+    untrack(() => {
+      cpuHistory = [...cpuHistory.slice(1), v];
+    });
   });
 
   function pct(n: number): string {
@@ -31,10 +36,10 @@
     return `${m}m`;
   }
 
-  // Sparkline path for the CPU history (0..100 -> viewBox 100x30).
+  // Sparkline path for the CPU history (0..100 -> viewBox 120x40).
   const sparkPath = $derived.by(() => {
-    const w = 100;
-    const h = 30;
+    const w = 120;
+    const h = 40;
     const step = w / (HISTORY - 1);
     return cpuHistory
       .map((v, i) => {
@@ -44,66 +49,85 @@
       })
       .join(" ");
   });
+
+  const sparkArea = $derived.by(() => {
+    return sparkPath + ` L120,40 L0,40 Z`;
+  });
 </script>
 
-<section class="panel flex h-full w-full items-center gap-10 px-16">
-  <!-- CPU -->
-  <div class="metric flex flex-1 items-center gap-4">
-    <Cpu size={36} class="text-quake" />
-    <div class="flex flex-col">
-      <div class="text-xs uppercase tracking-widest text-white/40">CPU</div>
-      <div class="text-4xl font-light tabular-nums text-white">
-        {pct($systemStats.cpu_usage)}
+<section class="panel flex h-full w-full items-center gap-8 px-16">
+  <!-- CPU — featured with sparkline -->
+  <div class="metric flex flex-[1.4] flex-col gap-3">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <Cpu size={18} class="text-[#3a8b9e]" />
+        <span class="label-track text-[#6b7785]">CPU</span>
       </div>
+      <span class="font-data text-3xl font-300 tabular-nums text-[#ffffff]">
+        {pct($systemStats.cpu_usage)}
+      </span>
     </div>
-    <svg viewBox="0 0 100 30" preserveAspectRatio="none" class="h-9 w-40">
-      <path d={sparkPath} fill="none" stroke="#00d9ff" stroke-width="1.2" />
-    </svg>
+    <div class="sparkline-wrap relative">
+      <svg viewBox="0 0 120 40" preserveAspectRatio="none" class="h-10 w-full">
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00d9ff" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#00d9ff" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={sparkArea} fill="url(#sparkGrad)" />
+        <path d={sparkPath} fill="none" stroke="#00d9ff" stroke-width="1" />
+      </svg>
+    </div>
   </div>
+
+  <div class="divider"></div>
 
   <!-- Memory -->
-  <div class="metric flex flex-1 items-center gap-4">
-    <MemoryStick size={36} class="text-quake" />
-    <div class="flex flex-col">
-      <div class="text-xs uppercase tracking-widest text-white/40">Memory</div>
-      <div class="text-4xl font-light tabular-nums text-white">
-        {pct($systemStats.memory_usage)}
-      </div>
-      <div class="text-xs text-white/40">
-        {fmtBytes($systemStats.memory_used)} / {fmtBytes($systemStats.memory_total)}
-      </div>
+  <div class="metric flex flex-1 flex-col gap-2">
+    <div class="flex items-center gap-2">
+      <MemoryStick size={18} class="text-[#3a8b9e]" />
+      <span class="label-track text-[#6b7785]">Memory</span>
     </div>
+    <span class="font-data text-3xl font-300 tabular-nums text-[#ffffff]">
+      {pct($systemStats.memory_usage)}
+    </span>
+    <span class="font-data text-xs text-[#6b7785]">
+      {fmtBytes($systemStats.memory_used)} / {fmtBytes($systemStats.memory_total)}
+    </span>
   </div>
 
+  <div class="divider"></div>
+
   <!-- Disk -->
-  <div class="metric flex flex-1 items-center gap-4">
-    <HardDrive size={36} class="text-quake" />
-    <div class="flex flex-col">
-      <div class="text-xs uppercase tracking-widest text-white/40">Disk</div>
-      <div class="text-4xl font-light tabular-nums text-white">
-        {pct($systemStats.disk_usage)}
-      </div>
-      <div class="text-xs text-white/40">
-        {fmtBytes($systemStats.disk_used)} / {fmtBytes($systemStats.disk_total)}
-      </div>
+  <div class="metric flex flex-1 flex-col gap-2">
+    <div class="flex items-center gap-2">
+      <HardDrive size={18} class="text-[#3a8b9e]" />
+      <span class="label-track text-[#6b7785]">Disk</span>
     </div>
+    <span class="font-data text-3xl font-300 tabular-nums text-[#ffffff]">
+      {pct($systemStats.disk_usage)}
+    </span>
+    <span class="font-data text-xs text-[#6b7785]">
+      {fmtBytes($systemStats.disk_used)} / {fmtBytes($systemStats.disk_total)}
+    </span>
   </div>
+
+  <div class="divider"></div>
 
   <!-- Network + uptime -->
   <div class="metric flex flex-1 flex-col gap-2">
-    <div class="flex items-center gap-3">
-      <Activity size={28} class="text-quake" />
-      <div>
-        <div class="text-xs uppercase tracking-widest text-white/40">Network</div>
-        <div class="text-sm tabular-nums text-white">
-          ↓ {fmtBytes($systemStats.network_rx)}
-          <span class="mx-1 text-white/30">|</span>
-          ↑ {fmtBytes($systemStats.network_tx)}
-        </div>
-      </div>
+    <div class="flex items-center gap-2">
+      <Activity size={18} class="text-[#3a8b9e]" />
+      <span class="label-track text-[#6b7785]">Network</span>
     </div>
-    <div class="text-xs uppercase tracking-widest text-white/40">Uptime</div>
-    <div class="text-2xl font-light tabular-nums text-white">
+    <div class="font-data text-sm tabular-nums text-[#e8eef2]">
+      ↓ {fmtBytes($systemStats.network_rx)}
+      <span class="mx-1 text-[#6b7785]/50">|</span>
+      ↑ {fmtBytes($systemStats.network_tx)}
+    </div>
+    <div class="mt-1 label-track text-[#6b7785]">Uptime</div>
+    <div class="font-data text-xl font-300 tabular-nums text-[#e8eef2]">
       {fmtUptime($systemStats.uptime)}
     </div>
   </div>
@@ -111,7 +135,14 @@
 
 <style>
   .metric {
-    border-left: 2px solid rgba(0, 217, 255, 0.25);
-    padding-left: 1.25rem;
+    padding: 0 0.5rem;
+  }
+  .divider {
+    width: 1px;
+    height: 60%;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .sparkline-wrap {
+    margin-top: -4px;
   }
 </style>

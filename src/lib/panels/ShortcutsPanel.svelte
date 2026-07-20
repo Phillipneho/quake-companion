@@ -23,7 +23,6 @@
     action: Action;
   }
 
-  // Icon registry — keys referenced from shortcut JSON.
   const ICONS: Record<string, IconType> = {
     Github,
     Globe,
@@ -47,7 +46,6 @@
     { icon: "Webhook", label: "Deploy", action: { kind: "webhook", url: "http://localhost:5678/webhook/deploy" } },
   ];
 
-  // Config is JSON in localStorage under quake.shortcuts; fall back to defaults.
   let shortcuts = $state<Shortcut[]>(DEFAULT_SHORTCUTS);
   let toast = $state<string | null>(null);
 
@@ -70,7 +68,6 @@
         toast = `Opening ${s.action.href}`;
         break;
       case "command":
-        // Placeholder: a real shell-command bridge would be a Tauri command.
         toast = `Run: ${s.action.command}`;
         break;
       case "webhook":
@@ -84,21 +81,21 @@
 </script>
 
 <section class="panel flex h-full w-full flex-col justify-center px-16">
-  <div class="grid grid-cols-8 gap-4">
+  <div class="grid grid-cols-8 gap-3">
     {#each shortcuts as s, i (i)}
       {@const Comp = ICONS[s.icon] ?? Globe}
       <button
-        class="shortcut touch-target flex flex-col items-center justify-center gap-2 rounded-xl bg-ink-800/60 px-2 py-3 transition-colors hover:bg-ink-700/80"
+        class="shortcut touch-target flex flex-col items-center justify-center gap-3 rounded-lg px-2 py-4 transition-all"
         onclick={() => run(s)}
       >
-        <Comp size={32} class="text-quake" />
-        <span class="text-sm font-medium text-white/85">{s.label}</span>
+        <Comp size={28} class="text-[#3a8b9e] transition-colors" />
+        <span class="font-display text-xs font-500 text-[#e8eef2]/80">{s.label}</span>
       </button>
     {/each}
   </div>
 
   {#if toast}
-    <div class="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 rounded-full bg-quake/15 px-4 py-1 text-sm text-quake-glow">
+    <div class="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 rounded-full px-4 py-1.5 font-display text-xs text-[#00d9ff]" style="background: rgba(0,217,255,0.08);">
       {toast}
     </div>
   {/if}
@@ -106,11 +103,15 @@
 
 <style>
   .shortcut {
-    border: 1px solid rgba(0, 217, 255, 0.1);
-  min-height: 120px;
+    background: #12141a;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    min-height: 110px;
   }
   .shortcut:hover {
-    border-color: rgba(0, 217, 255, 0.4);
-    box-shadow: 0 0 14px rgba(0, 217, 255, 0.12);
+    background: #1a1d26;
+    border-color: rgba(0, 217, 255, 0.15);
+  }
+  .shortcut:hover :global(svg) {
+    color: #00d9ff !important;
   }
 </style>
