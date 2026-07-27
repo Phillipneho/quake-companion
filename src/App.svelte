@@ -1,30 +1,38 @@
 <script lang="ts">
+  // QUAKE Companion — main app shell.
+  // Config-driven layout engine with zone-based rendering and page navigation.
+
   import { onMount, onDestroy } from "svelte";
 
   import {
-    activePanel,
     deviceState,
-    movePanel,
-    panels,
-    startDeviceEvents,
-    stopDeviceEvents,
     systemStats,
     touchPoints,
     api,
+    config,
+    type QuakeEvent,
   } from "./lib/stores/device";
+
+  import {
+    activePageIndex,
+    profilePages,
+    currentPage,
+    pageCount,
+    pageSelectorOpen,
+    movePage,
+    togglePageSelector,
+    initLayout,
+    switchProfile,
+  } from "./lib/stores/layout";
 
   import StatusBar from "./lib/components/StatusBar.svelte";
   import PanelIndicator from "./lib/components/PanelIndicator.svelte";
-  import ClockPanel from "./lib/panels/ClockPanel.svelte";
-  import StatsPanel from "./lib/panels/StatsPanel.svelte";
-  import AIPanel from "./lib/panels/AIPanel.svelte";
-  import ShortcutsPanel from "./lib/panels/ShortcutsPanel.svelte";
-  import MusicPanel from "./lib/panels/MusicPanel.svelte";
-  import NotificationsPanel from "./lib/panels/NotificationsPanel.svelte";
+  import ZoneLayout from "./lib/components/ZoneLayout.svelte";
+  import PageSelector from "./lib/components/PageSelector.svelte";
 
   let statsTimer: ReturnType<typeof setInterval> | undefined;
 
-  // --- Touch swipe navigation -----------------------------------------------
+  // --- Touch swipe navigation ------------------------------------------------
   let swipeStartX: number | null = null;
   let swipeLastX = 0;
   const SWIPE_THRESHOLD = 220;
@@ -38,15 +46,20 @@
     } else if (swipeStartX !== null) {
       const dx = swipeLastX - swipeStartX;
       if (Math.abs(dx) > SWIPE_THRESHOLD) {
-        movePanel(dx > 0 ? -1 : 1);
+        movePage(dx > 0 ? -1 : 1);
       }
       swipeStartX = null;
     }
   });
 
-  // --- Lifecycle ------------------------------------------------------------
+  // --- Knob event handling ---------------------------------------------------
+  // Rotate = page navigation. Press = focus toggle. Hold = page selector.
+  // This is wired through the device event handler in device.ts which calls
+  // the appropriate layout actions.
+
+  // --- Lifecycle -------------------------------------------------------------
   onMount(async () => {
-    await startDeviceEvents();
+    await initLayout();
     try {
       await api.wake();
     } catch {
@@ -58,7 +71,6 @@
 
   onDestroy(() => {
     if (statsTimer) clearInterval(statsTimer);
-    void stopDeviceEvents();
   });
 
   async function refreshStats(): Promise<void> {
@@ -66,8 +78,21 @@
       const s = await api.getSystemStats();
       systemStats.set(s);
     } catch {
-      // Outside Tauri (e.g. `vite dev` in a browser) the IPC call throws.
+      // Outside Tauri (e.g. vite dev in a browser) the IPC call throws.
     }
+  }
+
+  // Page label for status bar
+  const pageLabel = $derived.by(() => {
+    const pages = $profilePages;
+    if (pages.length === 0) return "";
+    const idx = $activePageIndex;
+    const name = pages[clamp(idx, 0, pages.length - 1)];
+    return $config?.pages.find((p) => p.name === name)?.label ?? name;
+  });
+
+  function clamp(n: number, lo: number, hi: number): number {
+    return Math.min(hi, Math.max(lo, n));
   }
 </script>
 
@@ -75,41 +100,30 @@
   <StatusBar />
 
   <div
-    class="panels-viewport absolute left-0 right-0 top-11 bottom-8 overflow-hidden"
+    class="pages-viewport absolute left-0 right-0 top-11 bottom-8 overflow-hidden"
   >
     <div
-      class="panel-strip flex h-full"
-      style="transform: translateX({-$activePanel * 100}vw); transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);"
+      class="page-strip flex h-full"
+      style="transform: translateX({-$activePageIndex * 100}vw); transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);"
     >
-      <div class="panel-cell h-full w-screen shrink-0">
-        <ClockPanel />
-      </div>
-      <div class="panel-cell h-full w-screen shrink-0">
-        <StatsPanel />
-      </div>
-      <div class="panel-cell h-full w-screen shrink-0">
-        <AIPanel />
-      </div>
-      <div class="panel-cell h-full w-screen shrink-0">
-        <ShortcutsPanel />
-      </div>
-      <div class="panel-cell h-full w-screen shrink-0">
-        <MusicPanel />
-      </div>
-      <div class="panel-cell h-full w-screen shrink-0">
-        <NotificationsPanel />
-      </div>
+      {#each $profilePages as _pageName, i (i)}
+        <div class="page-cell h-full w-screen shrink-0">
+          {#if i === $activePageIndex}
+            <ZoneLayout {pageIndex={i}} />
+          {/if}
+        </div>
+      {/each}
     </div>
   </div>
 
   <PanelIndicator />
+  <PageSelector />
 
   {#if !$deviceState.connected}
     <div
       class="waiting-overlay absolute inset-0 z-50 flex items-center justify-center bg-[#0a0b0e]/85 backdrop-blur-sm"
     >
       <div class="flex flex-col items-center gap-6 text-center">
-        <!-- Scanning line animation -->
         <div class="scan-frame relative h-16 w-48 overflow-hidden">
           <div class="scan-line absolute left-0 top-0 h-full w-px bg-[#00d9ff]"></div>
           <div class="absolute inset-0 border border-[rgba(0,217,255,0.08)]"></div>
@@ -128,29 +142,15 @@
 </div>
 
 <style>
-  .panels-viewport {
-    /* leaves room for StatusBar (top) + PanelIndicator (bottom) */
-  }
-
   .scan-line {
     animation: scan-sweep 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
   @keyframes scan-sweep {
-    0% {
-      left: 0%;
-      opacity: 0;
-    }
-    10% {
-      opacity: 1;
-    }
-    90% {
-      opacity: 1;
-    }
-    100% {
-      left: 100%;
-      opacity: 0;
-    }
+    0% { left: 0%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {

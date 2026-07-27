@@ -5,6 +5,9 @@ import { writable, derived, type Readable } from "svelte/store";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
+// Layout navigation imported for knob event routing.
+import { movePage, togglePageSelector, focusZone } from "./layout";
+
 // ---- Types -----------------------------------------------------------------
 
 export type PowerState = "awake" | "dim" | "sleep";
@@ -288,17 +291,18 @@ function handleEvent(ev: QuakeEvent): void {
       deviceState.update((s) => ({ ...s, connected: false }));
       break;
     case "Rotate":
-      movePanel(ev.data.direction >= 0 ? 1 : -1);
+      // Rotate = page navigation (page selector handles its own highlight)
+      movePage(ev.data.direction >= 0 ? 1 : -1);
       lastKnobAt.set(Date.now());
       break;
     case "Press":
-      // Knob press = enter / toggle. Panels that care can watch lastKnobAt;
-      // here it just nudges brightness as a demonstration affordance.
+      // Knob press = toggle zone focus
+      focusZone(-1);
       lastKnobAt.set(Date.now());
       break;
     case "KnobHold":
-      // Knob hold event — duration_ms indicates how long it was held.
-      // Panels can use this for context menus, mode switches, etc.
+      // Knob hold = open/close page selector
+      togglePageSelector();
       lastKnobAt.set(Date.now());
       break;
     case "Touch":
