@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::hid::*;
+use crate::via;
 
 /// Events pushed from the device worker threads to the host.
 #[derive(Clone, Debug, Serialize)]
@@ -227,6 +228,70 @@ impl QuakeDevice {
     pub fn set_led(&self, mode: u8) -> std::io::Result<()> {
         self.state.lock().unwrap().led = mode != 0;
         self.send(&[CTL_LED, mode], FLAG_SET)
+    }
+
+    // ---- VIA RGB ring control ------------------------------------------------
+    // The QUAKE panel exposes QMK VIA on the same HID interface as 0xA3.
+    // VIA frames are 33-byte reports: [0x00, cmd, ...payload].
+
+    /// Send a raw VIA report through the control HID device.
+    pub fn via_send(&self, report: &[u8]) -> std::io::Result<()> {
+        let mut guard = self.control.lock().unwrap();
+        match guard.as_mut() {
+            Some(d) => d
+                .write(report)
+                .map(|_| ())
+                .map_err(|e| std::io::Error::other(e.to_string())),
+            None => Err(std::io::Error::other("QUAKE control device not open")),
+        }
+    }
+
+    /// Set the RGB ring effect mode.
+    pub fn via_set_effect(&self, effect: via::RgbEffect) -> std::io::Result<()> {
+        let report = via::via_set_backlight(via::BACKLIGHT_EFFECT, &[effect.as_u8()]);
+        self.via_send(&report)
+    }
+
+    /// Set the RGB ring brightness (0-255).
+    pub fn via_set_brightness(&self, brightness: u8) -> std::io::Result<()> {
+        let report = via::via_set_backlight(via::BACKLIGHT_BRIGHTNESS, &[brightness]);
+        self.via_send(&report)
+    }
+
+    /// Set RGB ring color 1 (primary) — HSV format (hue 0-255, sat 0-255).
+    pub fn via_set_color_1(&self, hue: u8, sat: u8) -> std::io::Result<()> {
+        let report = via::via_set_backlight(via::BACKLIGHT_COLOR_1, &[hue, sat]);
+        self.via_send(&report)
+    }
+
+    /// Set RGB ring color 2 (secondary) — HSV format (hue 0-255, sat 0-255).
+    pub fn via_set_color_2(&self, hue: u8, sat: u8) -> std::io::Result<()> {
+        let report = via::via_set_backlight(via::BACKLIGHT_COLOR_2, &[hue, sat]);
+        self.via_send(&report)
+    }
+
+    /// Set a custom color slot by index — HSV format.
+    pub fn via_set_custom_color(&self, index: u8, hue: u8, sat: u8) -> std::io::Result<()> {
+        let report = via::via_set_backlight(via::BACKLIGHT_CUSTOM_COLOR, &[index, hue, sat]);
+        self.via_send(&report)
+    }
+
+    /// Save the current lighting config to EEPROM (persists across power cycles).
+    pub fn via_save_lighting(&self) -> std::io::Result<()> {
+        let report = via::via_save_backlight();
+        self.via_send(&report)
+    }
+
+    /// Reset the EEPROM (clears all saved lighting/keymap data).
+    pub fn via_eeprom_reset(&self) -> std::io::Result<()> {
+        let report = via::via_eeprom_reset();
+        self.via_send(&report)
+    }
+
+    /// Jump to the bootloader (for firmware updates).
+    pub fn via_bootloader_jump(&self) -> std::io::Result<()> {
+        let report = via::via_bootloader_jump();
+        self.via_send(&report)
     }
 
     pub async fn get_info(&self) -> std::io::Result<(u8, String)> {

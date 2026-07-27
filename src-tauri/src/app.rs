@@ -34,6 +34,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::get_power_state,
             commands::set_power_config,
             commands::get_power_config,
+            // VIA RGB ring control
+            commands::via_set_effect,
+            commands::via_set_brightness,
+            commands::via_set_color_1,
+            commands::via_set_color_2,
+            commands::via_set_custom_color,
+            commands::via_save_lighting,
+            commands::via_eeprom_reset,
+            commands::via_bootloader_jump,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;

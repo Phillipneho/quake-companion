@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::stats::{self, SystemStats};
+use crate::via::RgbEffect;
 
 /// Response shape for `get_device_info`.
 #[derive(Debug, Clone, Serialize)]
@@ -100,6 +101,48 @@ pub fn set_power_config(
 #[tauri::command]
 pub fn get_power_config(device: State<'_, Arc<QuakeDevice>>) -> PowerConfig {
     device.power_config()
+}
+
+// ---- VIA RGB ring control -------------------------------------------------
+
+#[tauri::command]
+pub fn via_set_effect(device: State<'_, Arc<QuakeDevice>>, effect: RgbEffect) -> Result<(), String> {
+    device.via_set_effect(effect).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_set_brightness(device: State<'_, Arc<QuakeDevice>>, brightness: u8) -> Result<(), String> {
+    device.via_set_brightness(brightness).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_set_color_1(device: State<'_, Arc<QuakeDevice>>, hue: u8, sat: u8) -> Result<(), String> {
+    device.via_set_color_1(hue, sat).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_set_color_2(device: State<'_, Arc<QuakeDevice>>, hue: u8, sat: u8) -> Result<(), String> {
+    device.via_set_color_2(hue, sat).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_set_custom_color(device: State<'_, Arc<QuakeDevice>>, index: u8, hue: u8, sat: u8) -> Result<(), String> {
+    device.via_set_custom_color(index, hue, sat).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_save_lighting(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.via_save_lighting().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_eeprom_reset(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.via_eeprom_reset().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn via_bootloader_jump(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.via_bootloader_jump().map_err(|e| e.to_string())
 }
 
 // ---- System stats ----------------------------------------------------------
