@@ -58,8 +58,26 @@ pub const QUAKE_PRODUCT_NAME: &str = "QUAKE";
 
 /// Firmware blanks the display if it stops receiving keep-alive pings.
 pub const KEEP_ALIVE_MS: u64 = 15_000;
-/// Companion pings slightly faster than the product to be safe.
-pub const KEEP_ALIVE_INTERVAL_MS: u64 = 14_000;
+/// Companion pings every 1500ms to keep the backlight awake reliably.
+pub const KEEP_ALIVE_INTERVAL_MS: u64 = 1_500;
+
+// ---- Idle power management defaults ----------------------------------------
+/// Dim to this brightness level after the idle-dim timeout elapses.
+pub const DIM_BRIGHTNESS_DEFAULT: u8 = 30;
+/// Seconds of inactivity before dimming the screen.
+pub const IDLE_DIM_SECS_DEFAULT: u64 = 30;
+/// Seconds of inactivity before turning the screen off entirely.
+ pub const IDLE_SLEEP_SECS_DEFAULT: u64 = 120;
+/// Brightness restored on wake.
+ pub const WAKE_BRIGHTNESS_DEFAULT: u8 = 255;
+
+// ---- Knob hold gesture thresholds ------------------------------------------
+/// Minimum press duration (ms) before classifying as a hold.
+ pub const KNOB_HOLD_THRESHOLD_MS: u64 = 500;
+/// Value the firmware reportedly sends at the start of a hold gesture.
+ pub const KNOB_HOLD_START: u8 = 5;
+/// Value the firmware reportedly sends at the end of a hold gesture.
+ pub const KNOB_HOLD_END: u8 = 0xFF;
 
 /// A parsed incoming control report (report-id already stripped).
 #[derive(Debug, Clone, Serialize)]

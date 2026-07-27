@@ -9,10 +9,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use hidapi::{DeviceInfo, HidApi, HidDevice};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::hid::*;
@@ -29,6 +29,8 @@ pub enum QuakeEvent {
     Rotate { direction: i8 },
     /// Jog wheel press. `value` is the raw sub-data byte.
     Press { value: u8 },
+    /// Jog wheel held for `duration_ms` then released.
+    KnobHold { duration_ms: u64 },
     /// Multi-touch report from the touch HID device.
     Touch { points: Vec<TouchPoint> },
     /// INFO response: device-name byte + firmware `major.minor.patch`.
@@ -41,6 +43,45 @@ pub enum QuakeEvent {
     Pong,
     /// Generic change-result (cmdID 0): 0x90 signals success.
     Result { success: bool },
+    /// Power state changed (dim/sleep/awake).
+    PowerStateChanged { state: PowerState },
+}
+
+/// Screen power state for idle management.
+#[derive(Clone, Copy, Debug, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PowerState {
+    /// Full brightness, fully interactive.
+    #[default]
+    Awake,
+    /// Dimmed — reduced brightness after idle-dim timeout.
+    Dim,
+    /// Screen off — after idle-sleep timeout.
+    Sleep,
+}
+
+/// Configurable idle power management thresholds.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PowerConfig {
+    /// Seconds of inactivity before dimming.
+    pub idle_dim_secs: u64,
+    /// Seconds of inactivity before sleeping (from full awake).
+    pub idle_sleep_secs: u64,
+    /// Brightness level when dimmed.
+    pub dim_brightness: u8,
+    /// Brightness restored on wake.
+    pub wake_brightness: u8,
+}
+
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self {
+            idle_dim_secs: IDLE_DIM_SECS_DEFAULT,
+            idle_sleep_secs: IDLE_SLEEP_SECS_DEFAULT,
+            dim_brightness: DIM_BRIGHTNESS_DEFAULT,
+            wake_brightness: WAKE_BRIGHTNESS_DEFAULT,
+        }
+    }
 }
 
 /// Last-known cached hardware state, updated from incoming 0x55 reports.
@@ -53,6 +94,8 @@ pub struct DeviceState {
     pub mic: Option<bool>,
     /// LED/buzzer effect has no read-back; track the last set value.
     pub led: bool,
+    /// Current power state (awake/dim/sleep).
+    pub power_state: PowerState,
 }
 
 /// A pending query waiting for a matching STATE (0x55) response.
@@ -70,6 +113,14 @@ pub struct QuakeDevice {
     event_tx: mpsc::UnboundedSender<QuakeEvent>,
     running: Arc<AtomicBool>,
     threads: Mutex<Vec<JoinHandle<()>>>,
+    /// Timestamp of the last user interaction (touch or knob).
+    last_interaction: Mutex<Instant>,
+    /// Idle power management configuration.
+    power_config: Mutex<PowerConfig>,
+    /// Current power state (awake/dim/sleep).
+    power_state: Mutex<PowerState>,
+    /// Knob press start timestamp for hold detection.
+    knob_press_start: Mutex<Option<Instant>>,
 }
 
 impl QuakeDevice {
@@ -88,6 +139,10 @@ impl QuakeDevice {
             event_tx,
             running,
             threads: Mutex::new(Vec::new()),
+            last_interaction: Mutex::new(Instant::now()),
+            power_config: Mutex::new(PowerConfig::default()),
+            power_state: Mutex::new(PowerState::Awake),
+            knob_press_start: Mutex::new(None),
         });
 
         // Spawn the control read + keep-alive loop. It opens the control
@@ -197,6 +252,96 @@ impl QuakeDevice {
         self.control.lock().unwrap().is_some()
     }
 
+    // ---- Idle + power management -------------------------------------------
+
+    /// Record a user interaction (touch or knob). Resets the idle timer and
+    /// wakes the screen if it was dimmed or sleeping.
+    pub fn note_interaction(&self) {
+        *self.last_interaction.lock().unwrap() = Instant::now();
+        let state = *self.power_state.lock().unwrap();
+        if state != PowerState::Awake {
+            let _ = self.wake_from_idle();
+        }
+    }
+
+    /// Returns how long since the last user interaction.
+    pub fn idle_duration(&self) -> Duration {
+        self.last_interaction.lock().unwrap().elapsed()
+    }
+
+    /// Returns the current power state.
+    pub fn power_state(&self) -> PowerState {
+        *self.power_state.lock().unwrap()
+    }
+
+    /// Update power management configuration at runtime.
+    pub fn set_power_config(&self, config: PowerConfig) {
+        *self.power_config.lock().unwrap() = config;
+    }
+
+    /// Get a copy of the current power config.
+    pub fn power_config(&self) -> PowerConfig {
+        self.power_config.lock().unwrap().clone()
+    }
+
+    /// Dim the screen to the configured dim brightness.
+    pub fn dim(&self) -> std::io::Result<()> {
+        let cfg = self.power_config.lock().unwrap().clone();
+        self.set_brightness(cfg.dim_brightness)?;
+        self.set_power_state(PowerState::Dim);
+        Ok(())
+    }
+
+    /// Turn the screen off entirely.
+    pub fn sleep_screen(&self) -> std::io::Result<()> {
+        self.set_screen(false)?;
+        self.set_power_state(PowerState::Sleep);
+        Ok(())
+    }
+
+    /// Wake from dim/sleep: screen on + full brightness.
+    pub fn wake_from_idle(&self) -> std::io::Result<()> {
+        let cfg = self.power_config.lock().unwrap().clone();
+        self.set_screen(true)?;
+        self.set_brightness(cfg.wake_brightness)?;
+        self.set_power_state(PowerState::Awake);
+        Ok(())
+    }
+
+    /// Check idle state and transition power if thresholds are exceeded.
+    /// Called periodically by the power manager task in app.rs.
+    pub fn check_idle(&self) -> std::io::Result<()> {
+        let cfg = self.power_config.lock().unwrap().clone();
+        let current = *self.power_state.lock().unwrap();
+        let idle = self.idle_duration();
+
+        // Only transition if currently awake or dim.
+        match current {
+            PowerState::Awake => {
+                if idle >= Duration::from_secs(cfg.idle_sleep_secs) {
+                    self.sleep_screen()?;
+                } else if idle >= Duration::from_secs(cfg.idle_dim_secs) {
+                    self.dim()?;
+                }
+            }
+            PowerState::Dim => {
+                if idle >= Duration::from_secs(cfg.idle_sleep_secs) {
+                    self.sleep_screen()?;
+                }
+            }
+            PowerState::Sleep => {
+                // Already sleeping; wake is handled by note_interaction().
+            }
+        }
+        Ok(())
+    }
+
+    fn set_power_state(&self, state: PowerState) {
+        *self.power_state.lock().unwrap() = state;
+        self.state.lock().unwrap().power_state = state;
+        let _ = self.event_tx.send(QuakeEvent::PowerStateChanged { state });
+    }
+
     // ---- Worker threads ----------------------------------------------------
 
     fn spawn_control_loop(self: &Arc<Self>) {
@@ -273,11 +418,33 @@ impl QuakeDevice {
                     } else {
                         -1
                     };
+                    self.note_interaction();
                     let _ = self.event_tx.send(QuakeEvent::Rotate { direction: dir });
                 }
                 2 => {
                     let v = report.sub_data.first().copied().unwrap_or(0);
-                    let _ = self.event_tx.send(QuakeEvent::Press { value: v });
+                    self.note_interaction();
+
+                    // Knob hold detection: firmware sends value=5 at hold start
+                    // and value=0xFF at hold end. Track the timestamp to compute
+                    // duration. For a simple press (other values), emit Press.
+                    if v == KNOB_HOLD_START {
+                        *self.knob_press_start.lock().unwrap() = Some(Instant::now());
+                    } else if v == KNOB_HOLD_END {
+                        if let Some(start) = self.knob_press_start.lock().unwrap().take() {
+                            let duration_ms = start.elapsed().as_millis() as u64;
+                            if duration_ms >= KNOB_HOLD_THRESHOLD_MS {
+                                let _ = self.event_tx.send(QuakeEvent::KnobHold { duration_ms });
+                            } else {
+                                // Brief tap — treat as press
+                                let _ = self.event_tx.send(QuakeEvent::Press { value: 0 });
+                            }
+                        }
+                    } else {
+                        // Regular press event
+                        *self.knob_press_start.lock().unwrap() = None;
+                        let _ = self.event_tx.send(QuakeEvent::Press { value: v });
+                    }
                 }
                 _ => {}
             }
@@ -404,6 +571,7 @@ impl QuakeDevice {
             match outcome {
                 TouchOutcome::Data(bytes) => {
                     if let Some(points) = decode_touch_raw(&bytes) {
+                        self.note_interaction();
                         let _ = self.event_tx.send(QuakeEvent::Touch { points });
                     }
                 }

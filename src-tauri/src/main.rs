@@ -7,8 +7,7 @@
 #![cfg_attr(not(feature = "tauri-runtime"), allow(dead_code))]
 
 #[cfg(feature = "tauri-runtime")]
-#[tauri::main]
-async fn main() {
+fn main() {
     if let Err(e) = quake_companion::app::run() {
         eprintln!("Quake Companion error: {e}");
     }

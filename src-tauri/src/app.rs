@@ -28,6 +28,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::get_device_info,
             commands::get_device_state,
             commands::get_system_stats,
+            commands::dim_screen,
+            commands::sleep_screen,
+            commands::wake_screen,
+            commands::get_power_state,
+            commands::set_power_config,
+            commands::get_power_config,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
@@ -54,16 +60,28 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    // Keep-alive watchdog: ping every 14s so the panel does not blank.
+    // Keep-alive: ping every 1500ms so the panel does not blank.
     let watchdog = Arc::clone(&device);
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(KEEP_ALIVE_INTERVAL_MS));
         interval.tick().await; // skip immediate first tick
         loop {
             interval.tick().await;
-            // A transient write error must not kill the watchdog.
             if let Err(e) = watchdog.ping() {
                 log::warn!("keep-alive ping failed: {e}");
+            }
+        }
+    });
+
+    // Idle power manager: check dim/sleep thresholds every 5s.
+    let power_mgr = Arc::clone(&device);
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        interval.tick().await; // skip immediate first tick
+        loop {
+            interval.tick().await;
+            if let Err(e) = power_mgr.check_idle() {
+                log::warn!("idle check failed: {e}");
             }
         }
     });
@@ -155,7 +173,7 @@ fn available_monitors(app: &tauri::App) -> Vec<Monitor> {
         .unwrap_or_default()
         .into_iter()
         .map(|m| Monitor {
-            name: m.name(),
+            name: m.name().cloned(),
             x: m.position().x as i32,
             y: m.position().y as i32,
             width: m.size().width as u32,

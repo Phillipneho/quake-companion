@@ -7,6 +7,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 // ---- Types -----------------------------------------------------------------
 
+export type PowerState = "awake" | "dim" | "sleep";
+
 export interface DeviceState {
   connected: boolean;
   brightness: number | null;
@@ -14,6 +16,14 @@ export interface DeviceState {
   led: boolean;
   version: string | null;
   device_name: number | null;
+  power_state: PowerState;
+}
+
+export interface PowerConfig {
+  idle_dim_secs: number;
+  idle_sleep_secs: number;
+  dim_brightness: number;
+  wake_brightness: number;
 }
 
 export interface SystemStats {
@@ -41,12 +51,14 @@ export type QuakeEvent =
   | { type: "Disconnected" }
   | { type: "Rotate"; data: { direction: number } }
   | { type: "Press"; data: { value: number } }
+  | { type: "KnobHold"; data: { duration_ms: number } }
   | { type: "Touch"; data: { points: TouchPoint[] } }
   | { type: "Info"; data: { device_name: number; version: string } }
   | { type: "Brightness"; data: { value: number } }
   | { type: "Mic"; data: { enabled: boolean } }
   | { type: "Pong" }
-  | { type: "Result"; data: { success: boolean } };
+  | { type: "Result"; data: { success: boolean } }
+  | { type: "PowerStateChanged"; data: { state: PowerState } };
 
 // ---- Stores ----------------------------------------------------------------
 
@@ -57,6 +69,7 @@ export const deviceState = writable<DeviceState>({
   led: false,
   version: null,
   device_name: null,
+  power_state: "awake",
 });
 
 export const systemStats = writable<SystemStats>({
@@ -130,6 +143,13 @@ export const api = {
   getDeviceInfo: () => call<{ device_name: number; version: string }>("get_device_info"),
   getDeviceState: () => call<DeviceState>("get_device_state"),
   getSystemStats: () => call<SystemStats>("get_system_stats"),
+  // Power management
+  dimScreen: () => call<void>("dim_screen"),
+  sleepScreen: () => call<void>("sleep_screen"),
+  wakeScreen: () => call<void>("wake_screen"),
+  getPowerState: () => call<PowerState>("get_power_state"),
+  setPowerConfig: (config: PowerConfig) => call<void>("set_power_config", { config }),
+  getPowerConfig: () => call<PowerConfig>("get_power_config"),
 };
 
 // ---- Event subscription ----------------------------------------------------
@@ -177,6 +197,11 @@ function handleEvent(ev: QuakeEvent): void {
       // here it just nudges brightness as a demonstration affordance.
       lastKnobAt.set(Date.now());
       break;
+    case "KnobHold":
+      // Knob hold event — duration_ms indicates how long it was held.
+      // Panels can use this for context menus, mode switches, etc.
+      lastKnobAt.set(Date.now());
+      break;
     case "Touch":
       touchPoints.set(ev.data.points);
       break;
@@ -192,6 +217,9 @@ function handleEvent(ev: QuakeEvent): void {
       break;
     case "Mic":
       deviceState.update((s) => ({ ...s, mic: ev.data.enabled }));
+      break;
+    case "PowerStateChanged":
+      deviceState.update((s) => ({ ...s, power_state: ev.data.state }));
       break;
     default:
       break;

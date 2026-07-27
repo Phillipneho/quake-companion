@@ -5,7 +5,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use tauri::State;
 
-use crate::device::{DeviceState, QuakeDevice};
+use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::stats::{self, SystemStats};
 
 /// Response shape for `get_device_info`.
@@ -64,6 +64,42 @@ pub async fn get_device_info(
 #[tauri::command]
 pub fn get_device_state(device: State<'_, Arc<QuakeDevice>>) -> DeviceState {
     device.state()
+}
+
+// ---- Power management ------------------------------------------------------
+
+#[tauri::command]
+pub fn dim_screen(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.dim().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn sleep_screen(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.sleep_screen().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn wake_screen(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
+    device.wake_from_idle().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_power_state(device: State<'_, Arc<QuakeDevice>>) -> PowerState {
+    device.power_state()
+}
+
+#[tauri::command]
+pub fn set_power_config(
+    device: State<'_, Arc<QuakeDevice>>,
+    config: PowerConfig,
+) -> Result<(), String> {
+    device.set_power_config(config);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_power_config(device: State<'_, Arc<QuakeDevice>>) -> PowerConfig {
+    device.power_config()
 }
 
 // ---- System stats ----------------------------------------------------------
