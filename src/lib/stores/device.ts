@@ -26,6 +26,31 @@ export interface PowerConfig {
   wake_brightness: number;
 }
 
+// ---- VIA RGB ring types ----------------------------------------------------
+
+export type RgbEffect =
+  | "off"
+  | "plain"
+  | "breathe"
+  | "rainbow"
+  | "swirl"
+  | "snake"
+  | "knight"
+  | "xmas"
+  | "gradient"
+  | "rainbow_test";
+
+export interface HsvColor {
+  hue: number;
+  sat: number;
+}
+
+export interface RgbColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
 export interface SystemStats {
   cpu_usage: number;
   memory_usage: number;
@@ -150,6 +175,15 @@ export const api = {
   getPowerState: () => call<PowerState>("get_power_state"),
   setPowerConfig: (config: PowerConfig) => call<void>("set_power_config", { config }),
   getPowerConfig: () => call<PowerConfig>("get_power_config"),
+  // VIA RGB ring control
+  viaSetEffect: (effect: RgbEffect) => call<void>("via_set_effect", { effect }),
+  viaSetBrightness: (brightness: number) => call<void>("via_set_brightness", { brightness }),
+  viaSetColor1: (hue: number, sat: number) => call<void>("via_set_color_1", { hue, sat }),
+  viaSetColor2: (hue: number, sat: number) => call<void>("via_set_color_2", { hue, sat }),
+  viaSetCustomColor: (index: number, hue: number, sat: number) => call<void>("via_set_custom_color", { index, hue, sat }),
+  viaSaveLighting: () => call<void>("via_save_lighting"),
+  viaEepromReset: () => call<void>("via_eeprom_reset"),
+  viaBootloaderJump: () => call<void>("via_bootloader_jump"),
 };
 
 // ---- Event subscription ----------------------------------------------------
