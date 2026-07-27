@@ -70,6 +70,52 @@ export interface TouchPoint {
   y: number;
 }
 
+// ---- Config types ----------------------------------------------------------
+
+export interface Settings {
+  idle_dim_secs: number;
+  idle_sleep_secs: number;
+  dim_brightness: number;
+  wake_brightness: number;
+  ring_effect: RgbEffect;
+  ring_brightness: number;
+  ring_color_1: [number, number];
+  ring_color_2: [number, number];
+  ring_persist: boolean;
+  keep_alive_ms: number;
+  mic_enabled: boolean;
+  clock_24h: boolean;
+  timezone: string;
+}
+
+export interface Zone {
+  id: string;
+  x: number;
+  width: number;
+  widget: string | null;
+}
+
+export interface Page {
+  name: string;
+  label: string;
+  zones: Zone[];
+}
+
+export interface Profile {
+  name: string;
+  label: string;
+  pages: string[];
+  ring_effect: RgbEffect | null;
+}
+
+export interface Config {
+  schema_version: number;
+  settings: Settings;
+  pages: Page[];
+  profiles: Profile[];
+  active_profile: string;
+}
+
 // Tagged event from the Rust `QuakeEvent` enum (serde tag = "type").
 export type QuakeEvent =
   | { type: "Connected" }
@@ -184,7 +230,26 @@ export const api = {
   viaSaveLighting: () => call<void>("via_save_lighting"),
   viaEepromReset: () => call<void>("via_eeprom_reset"),
   viaBootloaderJump: () => call<void>("via_bootloader_jump"),
+  // Config system
+  getConfig: () => call<Config>("get_config"),
+  saveConfig: (config: Config) => call<void>("save_config", { newConfig: config }),
+  resetConfig: () => call<Config>("reset_config"),
+  setActiveProfile: (profile: string) => call<void>("set_active_profile", { profile }),
 };
+
+// ---- Config store ---------------------------------------------------------
+
+export const config = writable<Config | null>(null);
+
+/** Load config from backend on startup. */
+export async function loadConfig(): Promise<void> {
+  try {
+    const cfg = await api.getConfig();
+    config.set(cfg);
+  } catch (e) {
+    console.error("Failed to load config:", e);
+  }
+}
 
 // ---- Event subscription ----------------------------------------------------
 
