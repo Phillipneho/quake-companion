@@ -10,6 +10,7 @@ pub mod device;
 pub mod hid;
 pub mod stats;
 pub mod via;
+pub mod widgets;
 
 #[cfg(feature = "tauri-runtime")]
 pub mod app;

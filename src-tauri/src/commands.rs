@@ -9,6 +9,7 @@ use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::stats::{self, SystemStats};
 use crate::via::RgbEffect;
+use crate::widgets::{WidgetManifest, WidgetRegistry};
 
 /// Response shape for `get_device_info`.
 #[derive(Debug, Clone, Serialize)]
@@ -193,6 +194,18 @@ pub fn set_active_profile(
     }
     let cfg = config.lock().map_err(|e| e.to_string())?;
     config::save(&cfg).map_err(|e| e.to_string())
+}
+
+// ---- Widget SDK -----------------------------------------------------------
+
+#[tauri::command]
+pub fn list_widgets(registry: State<'_, Arc<WidgetRegistry>>) -> Vec<WidgetManifest> {
+    registry.list().into_iter().cloned().collect()
+}
+
+#[tauri::command]
+pub fn get_widget(registry: State<'_, Arc<WidgetRegistry>>, id: String) -> Result<WidgetManifest, String> {
+    registry.get(&id).cloned().ok_or_else(|| format!("widget '{}' not found", id))
 }
 
 // ---- System stats ----------------------------------------------------------

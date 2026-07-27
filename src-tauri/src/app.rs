@@ -11,6 +11,7 @@ use crate::commands;
 use crate::config;
 use crate::device::{QuakeDevice, QuakeEvent};
 use crate::hid::KEEP_ALIVE_INTERVAL_MS;
+use crate::widgets::WidgetRegistry;
 
 /// Event channel name used to push device events to the frontend.
 pub const EVENT_CHANNEL: &str = "quake://event";
@@ -49,6 +50,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::save_config,
             commands::reset_config,
             commands::set_active_profile,
+            // Widget SDK
+            commands::list_widgets,
+            commands::get_widget,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
@@ -63,6 +67,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // Load config (seeds default on first run).
     let cfg = config::load()?;
     app.manage(Arc::new(Mutex::new(cfg)));
+
+    // Load widget registry (built-in + on-disk widgets).
+    let widget_registry = WidgetRegistry::load()?;
+    app.manage(Arc::new(widget_registry));
 
     // Event channel: device worker threads -> this forwarder -> frontend.
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<QuakeEvent>();
