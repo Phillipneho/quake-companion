@@ -20,6 +20,7 @@ tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "time", "m
 sysinfo = "0.32"
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4"
+dirs = "6"
 
 [features]
 # Enables the Tauri runtime (window, IPC, events). The non-tauri core

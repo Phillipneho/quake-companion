@@ -1,10 +1,11 @@
 //! Tauri IPC commands callable from the frontend.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use tauri::State;
 
+use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::stats::{self, SystemStats};
 use crate::via::RgbEffect;
@@ -143,6 +144,55 @@ pub fn via_eeprom_reset(device: State<'_, Arc<QuakeDevice>>) -> Result<(), Strin
 #[tauri::command]
 pub fn via_bootloader_jump(device: State<'_, Arc<QuakeDevice>>) -> Result<(), String> {
     device.via_bootloader_jump().map_err(|e| e.to_string())
+}
+
+// ---- Config system --------------------------------------------------------
+
+#[tauri::command]
+pub fn get_config(config: State<'_, Arc<Mutex<Config>>>) -> Result<Config, String> {
+    let cfg = config.lock().map_err(|e| e.to_string())?;
+    Ok(cfg.clone())
+}
+
+#[tauri::command]
+pub fn save_config(
+    config: State<'_, Arc<Mutex<Config>>>,
+    new_config: Config,
+) -> Result<(), String> {
+    {
+        let mut cfg = config.lock().map_err(|e| e.to_string())?;
+        *cfg = new_config;
+    }
+    // Persist to disk
+    let cfg = config.lock().map_err(|e| e.to_string())?;
+    config::save(&cfg).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn reset_config(config: State<'_, Arc<Mutex<Config>>>) -> Result<Config, String> {
+    let new_cfg = config::reset().map_err(|e| e.to_string())?;
+    {
+        let mut cfg = config.lock().map_err(|e| e.to_string())?;
+        *cfg = new_cfg.clone();
+    }
+    Ok(new_cfg)
+}
+
+#[tauri::command]
+pub fn set_active_profile(
+    config: State<'_, Arc<Mutex<Config>>>,
+    profile: String,
+) -> Result<(), String> {
+    {
+        let mut cfg = config.lock().map_err(|e| e.to_string())?;
+        // Validate profile exists
+        if !cfg.profiles.iter().any(|p| p.name == profile) {
+            return Err(format!("profile '{}' not found", profile));
+        }
+        cfg.active_profile = profile;
+    }
+    let cfg = config.lock().map_err(|e| e.to_string())?;
+    config::save(&cfg).map_err(|e| e.to_string())
 }
 
 // ---- System stats ----------------------------------------------------------

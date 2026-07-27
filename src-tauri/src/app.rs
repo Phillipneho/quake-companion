@@ -1,13 +1,14 @@
 //! Tauri application shell: window/display setup, device management, event
 //! forwarding, and the keep-alive watchdog task.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager, WindowEvent};
 use tokio::sync::mpsc;
 
 use crate::commands;
+use crate::config;
 use crate::device::{QuakeDevice, QuakeEvent};
 use crate::hid::KEEP_ALIVE_INTERVAL_MS;
 
@@ -43,6 +44,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::via_save_lighting,
             commands::via_eeprom_reset,
             commands::via_bootloader_jump,
+            // Config system
+            commands::get_config,
+            commands::save_config,
+            commands::reset_config,
+            commands::set_active_profile,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
@@ -53,6 +59,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // Place the window on the DK-QUAKE display if present (1920x480). Falls
     // back to the primary monitor in dev.
     position_on_quake_display(app);
+
+    // Load config (seeds default on first run).
+    let cfg = config::load()?;
+    app.manage(Arc::new(Mutex::new(cfg)));
 
     // Event channel: device worker threads -> this forwarder -> frontend.
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<QuakeEvent>();
