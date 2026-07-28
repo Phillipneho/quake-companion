@@ -72,6 +72,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::snooze_notification,
             commands::dismiss_notification,
             commands::fetch_github_notifications,
+            // Home Assistant
+            commands::ha_get_states,
+            commands::ha_get_entity,
+            commands::ha_toggle,
+            commands::ha_turn_on,
+            commands::ha_turn_off,
+            commands::ha_set_brightness,
+            commands::ha_media_play_pause,
+            commands::ha_set_volume,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;

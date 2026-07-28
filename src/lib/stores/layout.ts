@@ -118,6 +118,7 @@ import Pomodoro from "../widgets/Pomodoro.svelte";
 import Calendar from "../widgets/Calendar.svelte";
 import DailyStoic from "../widgets/DailyStoic.svelte";
 import WebDashboard from "../widgets/WebDashboard.svelte";
+import HomeAssistant from "../widgets/HomeAssistant.svelte";
 
 export const widgetComponents: Record<string, any> = {
   "flip-clock": FlipClock,
@@ -130,6 +131,7 @@ export const widgetComponents: Record<string, any> = {
   calendar: Calendar,
   "daily-stoic": DailyStoic,
   "web-dashboard": WebDashboard,
+  "home-assistant": HomeAssistant,
 };
 
 // ---- Helpers ---------------------------------------------------------------

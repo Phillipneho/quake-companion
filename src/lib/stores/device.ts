@@ -257,6 +257,15 @@ export const api = {
   snoozeNotification: (id: string) => call<void>("snooze_notification", { id }),
   dismissNotification: (id: string) => call<void>("dismiss_notification", { id }),
   fetchGithubNotifications: () => call<number>("fetch_github_notifications"),
+  // Home Assistant
+  haGetStates: () => call<any[]>("ha_get_states"),
+  haGetEntity: (entityId: string) => call<any>("ha_get_entity", { entityId }),
+  haToggle: (entityId: string) => call<void>("ha_toggle", { entityId }),
+  haTurnOn: (entityId: string) => call<void>("ha_turn_on", { entityId }),
+  haTurnOff: (entityId: string) => call<void>("ha_turn_off", { entityId }),
+  haSetBrightness: (entityId: string, brightness: number) => call<void>("ha_set_brightness", { entityId, brightness }),
+  haMediaPlayPause: (entityId: string) => call<void>("ha_media_play_pause", { entityId }),
+  haSetVolume: (entityId: string, volume: number) => call<void>("ha_set_volume", { entityId, volume }),
 };
 
 // ---- Config store ---------------------------------------------------------

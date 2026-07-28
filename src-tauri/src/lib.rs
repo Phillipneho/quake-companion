@@ -8,6 +8,7 @@
 pub mod config;
 pub mod device;
 pub mod hid;
+pub mod homeassistant;
 pub mod notifications;
 pub mod spotify;
 pub mod stats;

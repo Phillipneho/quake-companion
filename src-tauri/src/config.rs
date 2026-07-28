@@ -15,6 +15,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::via::RgbEffect;
+use crate::homeassistant::HaConfig;
 
 // ---- Schema version --------------------------------------------------------
 
@@ -91,6 +92,11 @@ pub struct Settings {
     /// IANA timezone string (e.g. "Australia/Brisbane").
     #[serde(default = "default_timezone")]
     pub timezone: String,
+
+    // ---- Home Assistant ----
+    /// HA connection config (None = HA not configured).
+    #[serde(default)]
+    pub ha: Option<HaConfig>,
 }
 
 fn default_clock_24h() -> bool {
@@ -117,6 +123,7 @@ impl Default for Settings {
             mic_enabled: false,
             clock_24h: true,
             timezone: "Australia/Brisbane".to_string(),
+            ha: None,
         }
     }
 }

@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
+use crate::homeassistant::{HaClient, HaEntity, HaEntitySummary};
 use crate::notifications::{Notification, NotificationFeed};
 use crate::spotify::{self, NowPlaying, PlaybackState};
 use crate::stats::{self, SystemStats};
@@ -337,6 +338,113 @@ pub async fn fetch_github_notifications() -> Result<usize, String> {
     // TODO: Read token from config. For now, return 0 if no token configured.
     // This will be wired up once notification config is added to settings.
     Ok(0)
+}
+
+// ---- Home Assistant --------------------------------------------------------
+
+/// Build an HA client from config. Returns error if not configured.
+/// Clones the needed fields so the MutexGuard is dropped before any await.
+fn ha_client_from_config(config: &Config) -> Result<HaClient, String> {
+    let ha = config.settings.ha.as_ref().ok_or("Home Assistant not configured")?;
+    let url = ha.url.as_ref().ok_or("Home Assistant URL not set")?;
+    let token = ha.token.as_ref().ok_or("Home Assistant token not set")?;
+    Ok(HaClient::new(url, token))
+}
+
+#[tauri::command]
+pub async fn ha_get_states(config: State<'_, Arc<Mutex<Config>>>) -> Result<Vec<HaEntitySummary>, String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    let states = client.get_states().await?;
+    Ok(states.iter().map(HaEntitySummary::from).collect())
+}
+
+#[tauri::command]
+pub async fn ha_get_entity(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+) -> Result<HaEntity, String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.get_state(&entity_id).await
+}
+
+#[tauri::command]
+pub async fn ha_toggle(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.toggle(&entity_id).await
+}
+
+#[tauri::command]
+pub async fn ha_turn_on(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.turn_on(&entity_id).await
+}
+
+#[tauri::command]
+pub async fn ha_turn_off(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.turn_off(&entity_id).await
+}
+
+#[tauri::command]
+pub async fn ha_set_brightness(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+    brightness: u8,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.set_brightness(&entity_id, brightness).await
+}
+
+#[tauri::command]
+pub async fn ha_media_play_pause(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.media_play_pause(&entity_id).await
+}
+
+#[tauri::command]
+pub async fn ha_set_volume(
+    config: State<'_, Arc<Mutex<Config>>>,
+    entity_id: String,
+    volume: f64,
+) -> Result<(), String> {
+    let client = {
+        let cfg = config.lock().map_err(|e| e.to_string())?;
+        ha_client_from_config(&cfg)?
+    };
+    client.set_volume(&entity_id, volume).await
 }
 
 // ---- System stats ----------------------------------------------------------
