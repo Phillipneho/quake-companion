@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use serde::Serialize;
 use tauri::State;
 
+use crate::ai_panels::{self, ComposePanelRequest, ComposedPanel};
 use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::homeassistant::{HaClient, HaEntity, HaEntitySummary};
@@ -497,6 +498,33 @@ pub async fn oc_respond_to_text(text: String) -> Result<String, String> {
 #[tauri::command]
 pub fn oc_get_recording_state() -> RecordingState {
     RecordingState::Idle
+}
+
+// ---- AI-Composed Panels ----------------------------------------------------
+
+#[tauri::command]
+pub async fn compose_panel(
+    _config: State<'_, Arc<Mutex<Config>>>,
+    registry: State<'_, Arc<WidgetRegistry>>,
+    prompt: String,
+) -> Result<ComposedPanel, String> {
+    let widgets: Vec<String> = registry.list().iter().map(|w| w.id.clone()).collect();
+    let req = ComposePanelRequest {
+        prompt,
+        available_widgets: widgets,
+        display_width: 1920,
+    };
+    ai_panels::compose_panel(req).await
+}
+
+#[tauri::command]
+pub fn save_composed_panel(
+    config: State<'_, Arc<Mutex<Config>>>,
+    panel: crate::config::Page,
+) -> Result<(), String> {
+    let mut cfg = config.lock().map_err(|e| e.to_string())?;
+    ai_panels::save_composed_panel(&mut cfg, panel).map_err(|e| e.to_string())?;
+    config::save(&cfg).map_err(|e| e.to_string())
 }
 
 // ---- System stats ----------------------------------------------------------

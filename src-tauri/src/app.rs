@@ -88,6 +88,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::oc_transcribe_and_respond,
             commands::oc_respond_to_text,
             commands::oc_get_recording_state,
+            // AI-Composed Panels
+            commands::compose_panel,
+            commands::save_composed_panel,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;

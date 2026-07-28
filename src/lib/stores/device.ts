@@ -273,6 +273,9 @@ export const api = {
   ocTranscribeAndRespond: (audioData: number[], format: string) => call<string>("oc_transcribe_and_respond", { audioData, format }),
   ocRespondToText: (text: string) => call<string>("oc_respond_to_text", { text }),
   ocGetRecordingState: () => call<string>("oc_get_recording_state"),
+  // AI-Composed Panels
+  composePanel: (prompt: string) => call<any>("compose_panel", { prompt }),
+  saveComposedPanel: (panel: any) => call<void>("save_composed_panel", { panel }),
 };
 
 // ---- Config store ---------------------------------------------------------

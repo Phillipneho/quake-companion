@@ -5,6 +5,7 @@
 //! feature). The core compiles on hosts that lack the webkit2gtk system
 //! libraries, so the protocol + device logic can be type-checked in isolation.
 
+pub mod ai_panels;
 pub mod config;
 pub mod device;
 pub mod hid;
