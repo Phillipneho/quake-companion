@@ -9,6 +9,7 @@ use crate::ai_panels::{self, ComposePanelRequest, ComposedPanel};
 use crate::config::{self, Config};
 use crate::context::{ContextEngine, ContextRule, ContextState};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
+use crate::gestures::{BurnInConfig, Gesture, GestureEngine};
 use crate::homeassistant::{HaClient, HaEntity, HaEntitySummary};
 use crate::notifications::{Notification, NotificationFeed};
 use crate::openclaw_panel::{self, ChatMessage, RecordingState};
@@ -580,6 +581,27 @@ pub fn set_ring_status(status: RingStatus) -> Result<(), String> {
     // so we store the status and let the app apply it.
     // For now, just update the engine state.
     Ok(())
+}
+
+// ---- Gestures + Burn-in ----------------------------------------------------
+
+pub static GESTURE_ENGINE: std::sync::LazyLock<std::sync::Mutex<GestureEngine>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(GestureEngine::new()));
+
+#[tauri::command]
+pub fn process_touch_points(points: Vec<(u8, u32, u32)>) -> Result<Option<Gesture>, String> {
+    let mut engine = GESTURE_ENGINE.lock().map_err(|e| e.to_string())?;
+    Ok(engine.process(&points))
+}
+
+#[tauri::command]
+pub fn get_burn_in_config() -> BurnInConfig {
+    BurnInConfig::default()
+}
+
+#[tauri::command]
+pub fn get_scheduled_brightness(hour: u32) -> u8 {
+    crate::gestures::scheduled_brightness(&BurnInConfig::default(), hour)
 }
 
 // ---- System stats ----------------------------------------------------------

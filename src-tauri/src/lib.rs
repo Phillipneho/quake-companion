@@ -9,6 +9,7 @@ pub mod ai_panels;
 pub mod config;
 pub mod context;
 pub mod device;
+pub mod gestures;
 pub mod hid;
 pub mod homeassistant;
 pub mod notifications;

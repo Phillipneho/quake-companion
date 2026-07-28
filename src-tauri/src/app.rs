@@ -99,6 +99,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::get_triggers,
             commands::get_trigger_state,
             commands::set_ring_status,
+            // Gestures + Burn-in
+            commands::process_touch_points,
+            commands::get_burn_in_config,
+            commands::get_scheduled_brightness,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
