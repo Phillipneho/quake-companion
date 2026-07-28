@@ -9,6 +9,7 @@ use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::homeassistant::{HaClient, HaEntity, HaEntitySummary};
 use crate::notifications::{Notification, NotificationFeed};
+use crate::openclaw_panel::{self, ChatMessage, RecordingState};
 use crate::spotify::{self, NowPlaying, PlaybackState};
 use crate::stats::{self, SystemStats};
 use crate::via::RgbEffect;
@@ -445,6 +446,57 @@ pub async fn ha_set_volume(
         ha_client_from_config(&cfg)?
     };
     client.set_volume(&entity_id, volume).await
+}
+
+// ---- OpenClaw Panel --------------------------------------------------------
+
+#[tauri::command]
+pub fn oc_get_messages() -> Vec<ChatMessage> {
+    openclaw_panel::get_messages()
+}
+
+#[tauri::command]
+pub fn oc_clear_conversation() -> Result<(), String> {
+    openclaw_panel::clear_conversation();
+    Ok(())
+}
+
+#[tauri::command]
+pub fn oc_send_text(text: String) -> Result<(), String> {
+    openclaw_panel::add_message(ChatMessage::User(text));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn oc_transcribe_and_respond(audio_data: Vec<u8>, format: String) -> Result<String, String> {
+    // 1. Transcribe audio via Whisper API
+    let transcript = openclaw_panel::transcribe_audio(&audio_data, &format).await?;
+    
+    // 2. Add user message to conversation
+    openclaw_panel::add_message(ChatMessage::User(transcript.clone()));
+    
+    // 3. Get LLM response
+    let messages = openclaw_panel::get_messages();
+    let response = openclaw_panel::llm_respond(&messages).await?;
+    
+    // 4. Add assistant response to conversation
+    openclaw_panel::add_message(ChatMessage::Assistant(response.clone()));
+    
+    Ok(response)
+}
+
+#[tauri::command]
+pub async fn oc_respond_to_text(text: String) -> Result<String, String> {
+    openclaw_panel::add_message(ChatMessage::User(text));
+    let messages = openclaw_panel::get_messages();
+    let response = openclaw_panel::llm_respond(&messages).await?;
+    openclaw_panel::add_message(ChatMessage::Assistant(response.clone()));
+    Ok(response)
+}
+
+#[tauri::command]
+pub fn oc_get_recording_state() -> RecordingState {
+    RecordingState::Idle
 }
 
 // ---- System stats ----------------------------------------------------------

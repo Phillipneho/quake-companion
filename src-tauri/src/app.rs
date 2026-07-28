@@ -81,6 +81,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::ha_set_brightness,
             commands::ha_media_play_pause,
             commands::ha_set_volume,
+            // OpenClaw Panel
+            commands::oc_get_messages,
+            commands::oc_clear_conversation,
+            commands::oc_send_text,
+            commands::oc_transcribe_and_respond,
+            commands::oc_respond_to_text,
+            commands::oc_get_recording_state,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;

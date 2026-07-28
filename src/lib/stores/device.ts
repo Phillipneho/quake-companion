@@ -266,6 +266,13 @@ export const api = {
   haSetBrightness: (entityId: string, brightness: number) => call<void>("ha_set_brightness", { entityId, brightness }),
   haMediaPlayPause: (entityId: string) => call<void>("ha_media_play_pause", { entityId }),
   haSetVolume: (entityId: string, volume: number) => call<void>("ha_set_volume", { entityId, volume }),
+  // OpenClaw Panel
+  ocGetMessages: () => call<any[]>("oc_get_messages"),
+  ocClearConversation: () => call<void>("oc_clear_conversation"),
+  ocSendText: (text: string) => call<void>("oc_send_text", { text }),
+  ocTranscribeAndRespond: (audioData: number[], format: string) => call<string>("oc_transcribe_and_respond", { audioData, format }),
+  ocRespondToText: (text: string) => call<string>("oc_respond_to_text", { text }),
+  ocGetRecordingState: () => call<string>("oc_get_recording_state"),
 };
 
 // ---- Config store ---------------------------------------------------------

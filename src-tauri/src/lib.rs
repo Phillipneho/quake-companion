@@ -10,6 +10,7 @@ pub mod device;
 pub mod hid;
 pub mod homeassistant;
 pub mod notifications;
+pub mod openclaw_panel;
 pub mod spotify;
 pub mod stats;
 pub mod via;
