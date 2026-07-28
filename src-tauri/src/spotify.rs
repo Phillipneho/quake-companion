@@ -15,6 +15,8 @@ use std::path::PathBuf;
 use base64::Engine;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 // ---- Spotify API constants -------------------------------------------------
 
@@ -125,6 +127,133 @@ pub fn code_challenge(verifier: &str) -> String {
 pub fn generate_state() -> String {
     let bytes: [u8; 16] = rand::thread_rng().gen();
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+}
+
+// ---- OAuth callback server ------------------------------------------------
+
+/// Shared state for the OAuth callback — the callback handler writes the
+/// received code + state here, and the waiting caller reads it.
+pub struct CallbackResult {
+    pub code: String,
+    pub state: String,
+    pub error: Option<String>,
+}
+
+/// Start a localhost HTTP server on REDIRECT_PORT that listens for the
+/// Spotify OAuth callback. Returns a future that resolves when the callback
+/// is received (or times out after 120 seconds).
+pub async fn start_callback_server(
+    expected_state: String,
+    code_verifier: String,
+    client_id: String,
+) -> Result<SpotifyTokens, String> {
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", REDIRECT_PORT))
+        .await
+        .map_err(|e| format!("failed to bind callback server on port {}: {}", REDIRECT_PORT, e))?;
+
+    log::info!("Spotify callback server listening on 127.0.0.1:{}", REDIRECT_PORT);
+
+    // Wait for the callback with a 120-second timeout
+    let timeout = tokio::time::timeout(
+        std::time::Duration::from_secs(120),
+        accept_callback(listener, expected_state, code_verifier, client_id),
+    )
+    .await;
+
+    match timeout {
+        Ok(Ok(tokens)) => Ok(tokens),
+        Ok(Err(e)) => Err(e),
+        Err(_) => Err("OAuth callback timed out after 120 seconds".to_string()),
+    }
+}
+
+async fn accept_callback(
+    listener: TcpListener,
+    expected_state: String,
+    code_verifier: String,
+    client_id: String,
+) -> Result<SpotifyTokens, String> {
+    loop {
+        let (mut socket, _) = listener
+            .accept()
+            .await
+            .map_err(|e| format!("callback accept failed: {e}"))?;
+
+        // Read the HTTP request
+        let mut buf = vec![0u8; 4096];
+        let n = socket
+            .read(&mut buf)
+            .await
+            .map_err(|e| format!("callback read failed: {e}"))?;
+        let request = String::from_utf8_lossy(&buf[..n]);
+
+        // Parse the first line: GET /callback?code=...&state=... HTTP/1.1
+        let first_line = request.lines().next().unwrap_or("");
+        let url_part = first_line.split_whitespace().nth(1).unwrap_or("");
+
+        // Parse query params
+        let query = url_part.split('?').nth(1).unwrap_or("");
+        let params: std::collections::HashMap<&str, &str> = query
+            .split('&')
+            .filter_map(|kv| {
+                let mut parts = kv.splitn(2, '=');
+                let key = parts.next()?;
+                let val = parts.next()?;
+                Some((key, val))
+            })
+            .collect();
+
+        let code = params.get("code").copied().unwrap_or("");
+        let state = params.get("state").copied().unwrap_or("");
+        let error = params.get("error").copied();
+
+        // Build response HTML
+        let (status, body) = if let Some(err) = error {
+            log::warn!("Spotify OAuth error: {}", err);
+            (
+                "400 Bad Request",
+                "<html><body><h2>Authentication failed</h2><p>You can close this window.</p></body></html>",
+            )
+        } else if state != expected_state {
+            log::warn!("Spotify OAuth state mismatch: expected {}, got {}", expected_state, state);
+            (
+                "400 Bad Request",
+                "<html><body><h2>State mismatch — possible CSRF attack</h2><p>You can close this window.</p></body></html>",
+            )
+        } else if code.is_empty() {
+            (
+                "400 Bad Request",
+                "<html><body><h2>No authorization code received</h2><p>You can close this window.</p></body></html>",
+            )
+        } else {
+            (
+                "200 OK",
+                "<html><body style='font-family:sans-serif;text-align:center;padding:40px'><h2>Authentication successful!</h2><p>You can close this window and return to the QUAKE Companion app.</p></body></html>",
+            )
+        };
+
+        let response = format!(
+            "HTTP/1.1 {}\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            status,
+            body.len(),
+            body
+        );
+        let _ = socket.write_all(response.as_bytes()).await;
+        let _ = socket.flush().await;
+
+        if error.is_none() && state == expected_state && !code.is_empty() {
+            // Success — exchange the code for tokens
+            log::info!("Spotify OAuth code received, exchanging for tokens...");
+            let tokens = exchange_code(&client_id, code, &code_verifier).await?;
+            save_tokens(&tokens).map_err(|e| e.to_string())?;
+            return Ok(tokens);
+        }
+
+        // Error case — return the error
+        if let Some(err) = error {
+            return Err(format!("Spotify auth error: {}", err));
+        }
+    }
 }
 
 // ---- Auth URL builder ------------------------------------------------------

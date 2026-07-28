@@ -217,13 +217,24 @@ pub fn spotify_auth_status() -> bool {
 }
 
 #[tauri::command]
-pub fn spotify_start_auth() -> Result<String, String> {
+pub async fn spotify_start_auth() -> Result<String, String> {
     let verifier = spotify::generate_code_verifier();
     let state = spotify::generate_state();
     let url = spotify::auth_url(spotify::CLIENT_ID, &verifier, &state);
-    // Store verifier + state for the callback to use.
-    // For now, return the URL — the frontend opens it in the browser.
-    // TODO: spin up localhost HTTP server to catch the callback.
+
+    // Spawn the callback server in the background — it will wait for the
+    // OAuth redirect, exchange the code for tokens, and save them.
+    let verifier_clone = verifier.clone();
+    let state_clone = state.clone();
+    let client_id = spotify::CLIENT_ID.to_string();
+    tauri::async_runtime::spawn(async move {
+        match spotify::start_callback_server(state_clone, verifier_clone, client_id).await {
+            Ok(_tokens) => log::info!("Spotify auth successful, tokens saved"),
+            Err(e) => log::error!("Spotify auth failed: {}", e),
+        }
+    });
+
+    // Return the auth URL — the frontend opens it in the user's browser.
     Ok(url)
 }
 
