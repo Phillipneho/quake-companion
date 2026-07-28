@@ -249,6 +249,14 @@ export const api = {
   spotifyPrevious: () => call<void>("spotify_previous"),
   spotifySetVolume: (volume: number) => call<void>("spotify_set_volume", { volume }),
   spotifyGetState: () => call<any>("spotify_get_state"),
+  // Notifications
+  getNotifications: () => call<any[]>("get_notifications"),
+  getUnreadNotifications: () => call<any[]>("get_unread_notifications"),
+  getUnreadCount: () => call<number>("get_unread_count"),
+  markNotificationRead: (id: string) => call<void>("mark_notification_read", { id }),
+  snoozeNotification: (id: string) => call<void>("snooze_notification", { id }),
+  dismissNotification: (id: string) => call<void>("dismiss_notification", { id }),
+  fetchGithubNotifications: () => call<number>("fetch_github_notifications"),
 };
 
 // ---- Config store ---------------------------------------------------------

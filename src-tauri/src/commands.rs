@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
+use crate::notifications::{Notification, NotificationFeed};
 use crate::spotify::{self, NowPlaying, PlaybackState};
 use crate::stats::{self, SystemStats};
 use crate::via::RgbEffect;
@@ -284,6 +285,58 @@ pub async fn spotify_set_volume(volume: u8) -> Result<(), String> {
 pub async fn spotify_get_state() -> Result<PlaybackState, String> {
     let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
     spotify::get_playback_state(&token).await
+}
+
+// ---- Notifications ---------------------------------------------------------
+
+/// In-memory notification feed shared across the app.
+pub static NOTIFICATION_FEED: std::sync::LazyLock<std::sync::Mutex<NotificationFeed>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(NotificationFeed::default()));
+
+#[tauri::command]
+pub fn get_notifications() -> Result<Vec<Notification>, String> {
+    let feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    Ok(feed.all_sorted().into_iter().cloned().collect())
+}
+
+#[tauri::command]
+pub fn get_unread_notifications() -> Result<Vec<Notification>, String> {
+    let feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    Ok(feed.unread().into_iter().cloned().collect())
+}
+
+#[tauri::command]
+pub fn get_unread_count() -> Result<usize, String> {
+    let feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    Ok(feed.unread_count())
+}
+
+#[tauri::command]
+pub fn mark_notification_read(id: String) -> Result<(), String> {
+    let mut feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    feed.mark_read(&id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn snooze_notification(id: String) -> Result<(), String> {
+    let mut feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    feed.snooze(&id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn dismiss_notification(id: String) -> Result<(), String> {
+    let mut feed = NOTIFICATION_FEED.lock().map_err(|e| e.to_string())?;
+    feed.dismiss(&id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn fetch_github_notifications() -> Result<usize, String> {
+    // TODO: Read token from config. For now, return 0 if no token configured.
+    // This will be wired up once notification config is added to settings.
+    Ok(0)
 }
 
 // ---- System stats ----------------------------------------------------------

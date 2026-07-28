@@ -64,6 +64,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             commands::spotify_previous,
             commands::spotify_set_volume,
             commands::spotify_get_state,
+            // Notifications
+            commands::get_notifications,
+            commands::get_unread_notifications,
+            commands::get_unread_count,
+            commands::mark_notification_read,
+            commands::snooze_notification,
+            commands::dismiss_notification,
+            commands::fetch_github_notifications,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
