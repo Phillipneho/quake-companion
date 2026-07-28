@@ -36,7 +36,7 @@ pub const REDIRECT_URI: &str = "http://127.0.0.1:8888/callback";
 /// Default client ID — this is a public client (PKCE, no secret).
 /// TODO: Phillip needs to register a Spotify app and replace this.
 /// For now using the well-known Spotify demo client ID.
-pub const CLIENT_ID: &str = "YOUR_SPOTIFY_CLIENT_ID";
+pub const CLIENT_ID: &str = "9d055eaf618a43008407876f2c669f23";
 
 // ---- Token storage --------------------------------------------------------
 
