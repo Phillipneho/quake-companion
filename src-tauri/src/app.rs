@@ -53,6 +53,17 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             // Widget SDK
             commands::list_widgets,
             commands::get_widget,
+            // Spotify
+            commands::spotify_auth_status,
+            commands::spotify_start_auth,
+            commands::spotify_exchange_code,
+            commands::spotify_logout,
+            commands::spotify_now_playing,
+            commands::spotify_toggle_play,
+            commands::spotify_next,
+            commands::spotify_previous,
+            commands::spotify_set_volume,
+            commands::spotify_get_state,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;

@@ -8,6 +8,7 @@
 pub mod config;
 pub mod device;
 pub mod hid;
+pub mod spotify;
 pub mod stats;
 pub mod via;
 pub mod widgets;

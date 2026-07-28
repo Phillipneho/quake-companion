@@ -238,6 +238,17 @@ export const api = {
   saveConfig: (config: Config) => call<void>("save_config", { newConfig: config }),
   resetConfig: () => call<Config>("reset_config"),
   setActiveProfile: (profile: string) => call<void>("set_active_profile", { profile }),
+  // Spotify
+  spotifyAuthStatus: () => call<boolean>("spotify_auth_status"),
+  spotifyStartAuth: () => call<string>("spotify_start_auth"),
+  spotifyExchangeCode: (code: string, codeVerifier: string) => call<void>("spotify_exchange_code", { code, codeVerifier }),
+  spotifyLogout: () => call<void>("spotify_logout"),
+  spotifyNowPlaying: () => call<any>("spotify_now_playing"),
+  spotifyTogglePlay: () => call<void>("spotify_toggle_play"),
+  spotifyNext: () => call<void>("spotify_next"),
+  spotifyPrevious: () => call<void>("spotify_previous"),
+  spotifySetVolume: (volume: number) => call<void>("spotify_set_volume", { volume }),
+  spotifyGetState: () => call<any>("spotify_get_state"),
 };
 
 // ---- Config store ---------------------------------------------------------

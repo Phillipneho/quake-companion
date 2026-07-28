@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::config::{self, Config};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
+use crate::spotify::{self, NowPlaying, PlaybackState};
 use crate::stats::{self, SystemStats};
 use crate::via::RgbEffect;
 use crate::widgets::{WidgetManifest, WidgetRegistry};
@@ -206,6 +207,72 @@ pub fn list_widgets(registry: State<'_, Arc<WidgetRegistry>>) -> Vec<WidgetManif
 #[tauri::command]
 pub fn get_widget(registry: State<'_, Arc<WidgetRegistry>>, id: String) -> Result<WidgetManifest, String> {
     registry.get(&id).cloned().ok_or_else(|| format!("widget '{}' not found", id))
+}
+
+// ---- Spotify ---------------------------------------------------------------
+
+#[tauri::command]
+pub fn spotify_auth_status() -> bool {
+    spotify::is_authenticated()
+}
+
+#[tauri::command]
+pub fn spotify_start_auth() -> Result<String, String> {
+    let verifier = spotify::generate_code_verifier();
+    let state = spotify::generate_state();
+    let url = spotify::auth_url(spotify::CLIENT_ID, &verifier, &state);
+    // Store verifier + state for the callback to use.
+    // For now, return the URL — the frontend opens it in the browser.
+    // TODO: spin up localhost HTTP server to catch the callback.
+    Ok(url)
+}
+
+#[tauri::command]
+pub async fn spotify_exchange_code(code: String, code_verifier: String) -> Result<(), String> {
+    let tokens = spotify::exchange_code(spotify::CLIENT_ID, &code, &code_verifier)
+        .await?;
+    spotify::save_tokens(&tokens).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn spotify_logout() -> Result<(), String> {
+    spotify::clear_tokens().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn spotify_now_playing() -> Result<Option<NowPlaying>, String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::get_now_playing(&token).await
+}
+
+#[tauri::command]
+pub async fn spotify_toggle_play() -> Result<(), String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::toggle_playback(&token).await
+}
+
+#[tauri::command]
+pub async fn spotify_next() -> Result<(), String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::next_track(&token).await
+}
+
+#[tauri::command]
+pub async fn spotify_previous() -> Result<(), String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::previous_track(&token).await
+}
+
+#[tauri::command]
+pub async fn spotify_set_volume(volume: u8) -> Result<(), String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::set_volume(&token, volume).await
+}
+
+#[tauri::command]
+pub async fn spotify_get_state() -> Result<PlaybackState, String> {
+    let token = spotify::ensure_valid_token(spotify::CLIENT_ID).await?;
+    spotify::get_playback_state(&token).await
 }
 
 // ---- System stats ----------------------------------------------------------
