@@ -7,12 +7,14 @@ use tauri::State;
 
 use crate::ai_panels::{self, ComposePanelRequest, ComposedPanel};
 use crate::config::{self, Config};
+use crate::context::{ContextEngine, ContextRule, ContextState};
 use crate::device::{DeviceState, PowerConfig, PowerState, QuakeDevice};
 use crate::homeassistant::{HaClient, HaEntity, HaEntitySummary};
 use crate::notifications::{Notification, NotificationFeed};
 use crate::openclaw_panel::{self, ChatMessage, RecordingState};
 use crate::spotify::{self, NowPlaying, PlaybackState};
 use crate::stats::{self, SystemStats};
+use crate::triggers::{self, RingStatus, Trigger, TriggerEngineState};
 use crate::via::RgbEffect;
 use crate::widgets::{WidgetManifest, WidgetRegistry};
 
@@ -525,6 +527,59 @@ pub fn save_composed_panel(
     let mut cfg = config.lock().map_err(|e| e.to_string())?;
     ai_panels::save_composed_panel(&mut cfg, panel).map_err(|e| e.to_string())?;
     config::save(&cfg).map_err(|e| e.to_string())
+}
+
+// ---- Context Engine --------------------------------------------------------
+
+pub static CONTEXT_ENGINE: std::sync::LazyLock<std::sync::Mutex<ContextEngine>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(ContextEngine::new()));
+
+#[tauri::command]
+pub fn get_context_state() -> Result<ContextState, String> {
+    let engine = CONTEXT_ENGINE.lock().map_err(|e| e.to_string())?;
+    Ok(engine.state())
+}
+
+#[tauri::command]
+pub fn set_context_rules(rules: Vec<ContextRule>) -> Result<(), String> {
+    let mut engine = CONTEXT_ENGINE.lock().map_err(|e| e.to_string())?;
+    engine.set_rules(rules);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn note_interaction() -> Result<(), String> {
+    let mut engine = CONTEXT_ENGINE.lock().map_err(|e| e.to_string())?;
+    engine.note_interaction();
+    Ok(())
+}
+
+// ---- Trigger Engine + Ring Status ------------------------------------------
+
+#[tauri::command]
+pub fn get_triggers() -> Result<Vec<Trigger>, String> {
+    let engine = triggers::TRIGGER_ENGINE.lock().map_err(|e| e.to_string())?;
+    Ok(engine.triggers().to_vec())
+}
+
+#[tauri::command]
+pub fn get_trigger_state() -> Result<TriggerEngineState, String> {
+    let engine = triggers::TRIGGER_ENGINE.lock().map_err(|e| e.to_string())?;
+    Ok(engine.state().clone())
+}
+
+#[tauri::command]
+pub fn set_ring_status(status: RingStatus) -> Result<(), String> {
+    {
+        let mut engine = triggers::TRIGGER_ENGINE.lock().map_err(|e| e.to_string())?;
+        engine.set_ring_status(status);
+    }
+    // Apply to hardware via VIA
+    let (_effect, [_hue, _sat], _brightness) = status.to_via();
+    // We can't access the device from here without a State param,
+    // so we store the status and let the app apply it.
+    // For now, just update the engine state.
+    Ok(())
 }
 
 // ---- System stats ----------------------------------------------------------

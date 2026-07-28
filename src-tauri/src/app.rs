@@ -91,6 +91,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             // AI-Composed Panels
             commands::compose_panel,
             commands::save_composed_panel,
+            // Context Engine
+            commands::get_context_state,
+            commands::set_context_rules,
+            commands::note_interaction,
+            // Trigger Engine + Ring
+            commands::get_triggers,
+            commands::get_trigger_state,
+            commands::set_ring_status,
         ])
         .on_window_event(on_window_event)
         .run(tauri::generate_context!())?;
