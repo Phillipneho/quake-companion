@@ -196,15 +196,15 @@ fn position_on_quake_display(app: &mut tauri::App) {
         .find(|m| is_quake_monitor(m));
 
     if let Some(monitor) = quake {
-        eprintln!("[QUAKE] Positioning on QUAKE display at {},{} {}x{}", monitor.x(), monitor.y(), monitor.width(), monitor.height());
+        eprintln!("[QUAKE] Positioning on QUAKE display at {},{} reporting {}x{}", monitor.x(), monitor.y(), monitor.width(), monitor.height());
         let _ = window.set_position(tauri::LogicalPosition::new(
             monitor.x() as f64,
             monitor.y() as f64,
         ));
-        let _ = window.set_size(tauri::LogicalSize::new(
-            monitor.width() as f64,
-            monitor.height() as f64,
-        ));
+        // Always set the window to 1920x480 — the panel's native resolution.
+        // Tauri may report the monitor as 640x480 due to DPI scaling but the
+        // actual panel is 1920x480.
+        let _ = window.set_size(tauri::LogicalSize::new(1920.0, 480.0));
     } else {
         eprintln!("[QUAKE] No QUAKE monitor found — window stays on default display");
     }
@@ -238,8 +238,9 @@ impl Monitor {
     }
 }
 
-/// True if the monitor looks like the DK-QUAKE panel: named "DK-QUAKE" or with a
-/// 1920x480 (or 480x1920) resolution.
+/// True if the monitor looks like the DK-QUAKE panel: named "DK-QUAKE" or "QUAKE",
+/// or with a height of 480 (the QUAKE panel's distinctive dimension regardless
+/// of reported width — Tauri may report it at 640x480 instead of 1920x480).
 fn is_quake_monitor(m: &Monitor) -> bool {
     if let Some(name) = m.name() {
         let n = name.to_ascii_uppercase();
@@ -247,7 +248,9 @@ fn is_quake_monitor(m: &Monitor) -> bool {
             return true;
         }
     }
-    (m.width() == 1920 && m.height() == 480) || (m.width() == 480 && m.height() == 1920)
+    // Match on 480-pixel height — unique to the QUAKE ultra-wide panel.
+    // Tauri may report it as 1920x480 or 640x480 depending on DPI/scaling.
+    m.height() == 480 || m.width() == 480
 }
 
 /// Collect available monitors across the Tauri v2 monitor API variants.
