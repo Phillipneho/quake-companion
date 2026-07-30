@@ -24,7 +24,9 @@
         "width": 1920,
         "height": 480,
         "minWidth": 1920,
-        "minHeight": 480
+        "minHeight": 480,
+        "x": 1903,
+        "y": 1085
       }
     ],
     "security": {
