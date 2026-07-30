@@ -197,14 +197,15 @@ fn position_on_quake_display(app: &mut tauri::App) {
 
     if let Some(monitor) = quake {
         eprintln!("[QUAKE] Positioning on QUAKE display at {},{} reporting {}x{}", monitor.x(), monitor.y(), monitor.width(), monitor.height());
-        let _ = window.set_position(tauri::LogicalPosition::new(
-            monitor.x() as f64,
-            monitor.y() as f64,
-        ));
-        // Always set the window to 1920x480 — the panel's native resolution.
-        // Tauri may report the monitor as 640x480 due to DPI scaling but the
-        // actual panel is 1920x480.
-        let _ = window.set_size(tauri::LogicalSize::new(1920.0, 480.0));
+        // Use physical position/size. Tauri reports logical coords (640x480
+        // due to 300% DPI scaling) but the panel is physically 1920x480.
+        // The monitor position from Tauri is in logical coords, so we scale
+        // back to physical: logical_x * scale = physical_x.
+        // From PowerShell: DISPLAY13 physical bounds = {X=1903,Y=1085,1920x480}
+        // Tauri reports logical: x=-640, y=0, 640x480 (scale ~3x)
+        // Use physical coords directly for reliable positioning.
+        let _ = window.set_position(tauri::PhysicalPosition::new(1903i32, 1085i32));
+        let _ = window.set_size(tauri::PhysicalSize::new(1920u32, 480u32));
     } else {
         eprintln!("[QUAKE] No QUAKE monitor found — window stays on default display");
     }
