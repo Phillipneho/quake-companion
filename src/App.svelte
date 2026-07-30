@@ -10,6 +10,8 @@
     touchPoints,
     api,
     config,
+    startDeviceEvents,
+    stopDeviceEvents,
     type QuakeEvent,
   } from "./lib/stores/device";
 
@@ -59,6 +61,7 @@
 
   // --- Lifecycle -------------------------------------------------------------
   onMount(async () => {
+    await startDeviceEvents();
     await initLayout();
     try {
       await api.wake();
@@ -71,6 +74,7 @@
 
   onDestroy(() => {
     if (statsTimer) clearInterval(statsTimer);
+    void stopDeviceEvents();
   });
 
   async function refreshStats(): Promise<void> {
