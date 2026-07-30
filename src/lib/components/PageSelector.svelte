@@ -8,8 +8,8 @@
     profilePages,
     activePageIndex,
     goToPage,
-    config,
-  } from "../stores/layout";
+  } from "../stores/layout"
+  import { config } from "../stores/device";
 
   let highlightedIndex = $state(0);
 
