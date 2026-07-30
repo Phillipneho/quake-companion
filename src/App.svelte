@@ -109,7 +109,7 @@
       {#each $profilePages as _pageName, i (i)}
         <div class="page-cell h-full w-screen shrink-0">
           {#if i === $activePageIndex}
-            <ZoneLayout {pageIndex={i}} />
+            <ZoneLayout pageIndex={i} />
           {/if}
         </div>
       {/each}

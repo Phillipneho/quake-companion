@@ -1,4 +1,3 @@
-<script lang="ts">
   // Time store — single source of truth for the current time.
   // Updates every second. All widgets that need time import this.
 

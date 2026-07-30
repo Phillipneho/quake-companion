@@ -13,6 +13,9 @@ export default defineConfig({
     host: "127.0.0.1",
     // Proxy is not required (IPC uses the Tauri bridge), but keep HMR working
     // when launched through `tauri dev`.
+    watch: {
+      ignored: ['**/src-tauri/**']
+    },
     hmr: { protocol: "ws", host: "127.0.0.1", port: 5174 },
   },
   envPrefix: ["VITE_", "TAURI_ENV_*"],
