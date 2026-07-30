@@ -581,19 +581,24 @@ impl QuakeDevice {
 
     /// Try to open the control device. Returns true on success.
     fn rebind_control(&self) -> bool {
+        // On Windows ARM, a cached HidApi instance doesn't see newly connected
+        // devices and refresh_devices() is unreliable. Create a fresh HidApi
+        // on each rebind attempt instead of reusing the cached one.
+        let fresh_api = match HidApi::new() {
+            Ok(a) => a,
+            Err(_) => return false,
+        };
         let opened = {
-            let api = match self.api.lock() {
-                Ok(a) => a,
-                Err(_) => return false,
-            };
-            match find_control_device(&api) {
-                Some(info) => match api.open_path(info.path()) {
+            match find_control_device(&fresh_api) {
+                Some(info) => match fresh_api.open_path(info.path()) {
                     Ok(d) => Some(d),
                     Err(_) => None,
                 },
                 None => None,
             }
         };
+        // Update the cached api so other callers (touch loop) get a fresh view too.
+        *self.api.lock().unwrap() = fresh_api;
 
         match opened {
             Some(dev) => {
@@ -650,6 +655,9 @@ impl QuakeDevice {
     }
 
     fn rebind_touch(&self) -> bool {
+        // Use the cached api — it's refreshed by rebind_control() which runs
+        // on the same cycle. If it's stale, the touch device just won't bind
+        // this iteration and will retry.
         let opened = {
             let api = match self.api.lock() {
                 Ok(a) => a,
