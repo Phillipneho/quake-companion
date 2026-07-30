@@ -181,14 +181,22 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
 /// attached; otherwise leave it on the primary monitor at 1920x480.
 fn position_on_quake_display(app: &mut tauri::App) {
     let Some(window) = app.get_webview_window("main") else {
+        eprintln!("[QUAKE] No main window found for positioning");
         return;
     };
 
-    let quake = available_monitors(app)
+    let monitors = available_monitors(app);
+    eprintln!("[QUAKE] Found {} monitors:", monitors.len());
+    for m in &monitors {
+        eprintln!("[QUAKE]   name={:?} x={} y={} {}x{}", m.name(), m.x(), m.y(), m.width(), m.height());
+    }
+
+    let quake = monitors
         .into_iter()
         .find(|m| is_quake_monitor(m));
 
     if let Some(monitor) = quake {
+        eprintln!("[QUAKE] Positioning on QUAKE display at {},{} {}x{}", monitor.x(), monitor.y(), monitor.width(), monitor.height());
         let _ = window.set_position(tauri::LogicalPosition::new(
             monitor.x() as f64,
             monitor.y() as f64,
@@ -197,6 +205,8 @@ fn position_on_quake_display(app: &mut tauri::App) {
             monitor.width() as f64,
             monitor.height() as f64,
         ));
+    } else {
+        eprintln!("[QUAKE] No QUAKE monitor found — window stays on default display");
     }
 }
 
