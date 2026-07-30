@@ -61,13 +61,34 @@
 
   // --- Lifecycle -------------------------------------------------------------
   onMount(async () => {
-    await startDeviceEvents();
+    console.log("[QUAKE] App onMount starting");
+
+    // Start listening for device events
+    try {
+      await startDeviceEvents();
+      console.log("[QUAKE] Device event listener started");
+    } catch (e) {
+      console.error("[QUAKE] Failed to start device events:", e);
+    }
+
+    // Query device state directly — don't rely solely on events
+    try {
+      const ds = await api.getDeviceState();
+      deviceState.set(ds);
+      console.log("[QUAKE] Device state queried:", ds);
+    } catch (e) {
+      console.error("[QUAKE] Failed to query device state:", e);
+    }
+
     await initLayout();
+
     try {
       await api.wake();
-    } catch {
-      /* no device — handled by overlay */
+      console.log("[QUAKE] Wake sent");
+    } catch (e) {
+      console.error("[QUAKE] Wake failed:", e);
     }
+
     await refreshStats();
     statsTimer = setInterval(refreshStats, 3000);
   });
