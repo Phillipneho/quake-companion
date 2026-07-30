@@ -585,16 +585,40 @@ impl QuakeDevice {
         // devices and refresh_devices() is unreliable. Create a fresh HidApi
         // on each rebind attempt instead of reusing the cached one.
         let fresh_api = match HidApi::new() {
-            Ok(a) => a,
-            Err(_) => return false,
+            Ok(a) => {
+                eprintln!("[QUAKE] HidApi::new() ok, {} devices enumerated", a.device_list().count());
+                a
+            }
+            Err(e) => {
+                eprintln!("[QUAKE] HidApi::new() failed: {}", e);
+                return false;
+            }
         };
         let opened = {
             match find_control_device(&fresh_api) {
-                Some(info) => match fresh_api.open_path(info.path()) {
-                    Ok(d) => Some(d),
-                    Err(_) => None,
-                },
-                None => None,
+                Some(info) => {
+                    eprintln!("[QUAKE] Control device found: vid={:#06x} pid={:#06x} usage={:#06x} usage_page={:#06x}",
+                        info.vendor_id(), info.product_id(), info.usage(), info.usage_page());
+                    match fresh_api.open_path(info.path()) {
+                        Ok(d) => {
+                            eprintln!("[QUAKE] Control device opened successfully");
+                            Some(d)
+                        }
+                        Err(e) => {
+                            eprintln!("[QUAKE] Control device open failed: {}", e);
+                            None
+                        }
+                    }
+                }
+                None => {
+                    eprintln!("[QUAKE] No control device found in {} devices", fresh_api.device_list().count());
+                    // Print all HID devices for debugging
+                    for d in fresh_api.device_list() {
+                        eprintln!("[QUAKE]   vid={:#06x} pid={:#06x} usage={:#06x} usage_page={:#06x} product={:?}",
+                            d.vendor_id(), d.product_id(), d.usage(), d.usage_page(), d.product_string());
+                    }
+                    None
+                }
             }
         };
         // Update the cached api so other callers (touch loop) get a fresh view too.
