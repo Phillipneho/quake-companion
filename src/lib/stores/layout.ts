@@ -3,7 +3,8 @@
 // from the Config (pages, zones, widgets) and renders the right components.
 
 import { writable, derived, type Readable } from "svelte/store";
-import { api, config, type Config, type Page, type Zone } from "./device";
+import { api, type Config, type Page, type Zone } from "./device";
+import { config } from "./config";
 
 // ---- Navigation state -----------------------------------------------------
 

@@ -280,7 +280,8 @@ export const api = {
 
 // ---- Config store ---------------------------------------------------------
 
-export const config = writable<Config | null>(null);
+// Re-export config from the dedicated config store to avoid circular imports.
+export { config } from "./config";
 
 /** Load config from backend on startup. */
 export async function loadConfig(): Promise<void> {
