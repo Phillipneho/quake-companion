@@ -177,42 +177,71 @@ fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
     }
 }
 
-/// Move + size the main window to the DK-QUAKE display (1920x480) if one is
-/// attached; otherwise leave it on the primary monitor at 1920x480.
+/// Move + size the main window onto the DK-QUAKE display (1920x480) once it
+/// appears. The panel's HDMI link can lag Windows' display enumeration at
+/// startup, so we retry for up to 30 seconds instead of giving up after one
+/// check. Position/size come from the detected monitor itself — no hardcoded
+/// coordinates — so this survives topology changes and fresh installs.
 fn position_on_quake_display(app: &mut tauri::App) {
     let Some(window) = app.get_webview_window("main") else {
         eprintln!("[QUAKE] No main window found for positioning");
         return;
     };
 
-    let monitors = available_monitors(app);
+    if try_position_on_quake(&window) {
+        return;
+    }
+    // QUAKE display not enumerated yet — its HDMI link may still be waking.
+    // Retry once per second for 30 seconds, then give up gracefully.
+    let window = window.clone();
+    tauri::async_runtime::spawn(async move {
+        for attempt in 1..=30u32 {
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            if try_position_on_quake(&window) {
+                eprintln!("[QUAKE] QUAKE display appeared — positioned on attempt {attempt}");
+                return;
+            }
+        }
+        eprintln!("[QUAKE] Gave up waiting for the QUAKE display after 30s");
+    });
+}
+/// One enumeration + positioning attempt. Returns true when the window is
+/// parked on the QUAKE panel.
+fn try_position_on_quake(window: &tauri::WebviewWindow) -> bool {
+    let monitors = available_monitors(window);
     eprintln!("[QUAKE] Found {} monitors:", monitors.len());
     for m in &monitors {
-        eprintln!("[QUAKE]   name={:?} x={} y={} {}x{}", m.name(), m.x(), m.y(), m.width(), m.height());
+        eprintln!(
+            "[QUAKE]   name={:?} x={} y={} {}x{}",
+            m.name(),
+            m.x(),
+            m.y(),
+            m.width(),
+            m.height()
+        );
     }
+    let Some(monitor) = monitors.into_iter().find(|m| is_quake_monitor(m)) else {
+        eprintln!("[QUAKE] No QUAKE monitor found yet");
+        return false;
+    };
 
-    let quake = monitors
-        .into_iter()
-        .find(|m| is_quake_monitor(m));
-
-    if let Some(monitor) = quake {
-        eprintln!("[QUAKE] Positioning on QUAKE display at {},{} reporting {}x{}", monitor.x(), monitor.y(), monitor.width(), monitor.height());
-        // Use physical position/size. Tauri reports logical coords (640x480
-        // due to 300% DPI scaling) but the panel is physically 1920x480.
-        // The monitor position from Tauri is in logical coords, so we scale
-        // back to physical: logical_x * scale = physical_x.
-        // From PowerShell: DISPLAY13 physical bounds = {X=1903,Y=1085,1920x480}
-        // Tauri reports logical: x=-640, y=0, 640x480 (scale ~3x)
-        // Use physical coords directly for reliable positioning.
-        let _ = window.set_position(tauri::PhysicalPosition::new(1903i32, 1085i32));
-        let _ = window.set_size(tauri::PhysicalSize::new(1920u32, 480u32));
-    } else {
-        eprintln!("[QUAKE] No QUAKE monitor found — window stays on default display");
-    }
+    eprintln!(
+        "[QUAKE] Positioning on QUAKE display at {},{} reporting {}x{}",
+        monitor.x(),
+        monitor.y(),
+        monitor.width(),
+        monitor.height()
+    );
+    // Position from the monitor's own reported origin — never hardcoded
+    // coordinates. Tauri reports physical pixels here (fresh install:
+    // 1918,1085 at 1920x480), so this is exact.
+    let _ = window.set_position(tauri::PhysicalPosition::new(monitor.x(), monitor.y()));
+    let _ = window.set_size(tauri::PhysicalSize::new(1920u32, 480u32));
+    true
 }
 
-/// A flat monitor descriptor (logical pixels) that abstracts over the
-/// available-monitor API quirks across Tauri versions.
+/// A flat monitor descriptor (pixels as reported by Tauri) that abstracts
+/// over the available-monitor API quirks across Tauri versions.
 struct Monitor {
     name: Option<String>,
     x: i32,
@@ -220,7 +249,6 @@ struct Monitor {
     width: u32,
     height: u32,
 }
-
 impl Monitor {
     fn x(&self) -> i32 {
         self.x
@@ -255,10 +283,7 @@ fn is_quake_monitor(m: &Monitor) -> bool {
 }
 
 /// Collect available monitors across the Tauri v2 monitor API variants.
-fn available_monitors(app: &tauri::App) -> Vec<Monitor> {
-    let Some(window) = app.get_webview_window("main") else {
-        return Vec::new();
-    };
+fn available_monitors(window: &tauri::WebviewWindow) -> Vec<Monitor> {
     window
         .available_monitors()
         .unwrap_or_default()

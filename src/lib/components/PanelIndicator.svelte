@@ -1,19 +1,20 @@
 <script lang="ts">
-  import { activePanel, panels } from "../stores/device";
+  import { activePageIndex, profilePages, goToPage } from "../stores/layout";
+  import { config } from "../stores/device";
 </script>
 
 <footer
   class="indicator-bar absolute bottom-0 left-0 right-0 z-40 flex h-8 items-center justify-center gap-3"
 >
-  {#each panels as p, i (p.id)}
+  {#each $profilePages as pageName, i (i)}
     <button
       type="button"
       class="indicator touch-target flex items-center justify-center"
-      aria-label={`Go to ${p.label}`}
-      aria-current={$activePanel === i}
-      onclick={() => activePanel.set(i)}
+      aria-label={`Go to ${$config?.pages.find((p) => p.name === pageName)?.label ?? pageName}`}
+      aria-current={$activePageIndex === i}
+      onclick={() => goToPage(i)}
     >
-      <span class="line" class:active={$activePanel === i}></span>
+      <span class="line" class:active={$activePageIndex === i}></span>
     </button>
   {/each}
 </footer>

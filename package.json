@@ -25,5 +25,8 @@
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
     "lucide-svelte": "^0.460.0"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
   }
 }
